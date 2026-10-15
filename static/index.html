@@ -1,0 +1,533 @@
+<!DOCTYPE html>
+<html lang="es" class="dark">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Media Studio</title>
+  <!-- Tailwind CSS CDN -->
+  <script src="https://cdn.tailwindcss.com"></script>
+  <!-- Lucide Icons -->
+  <script src="https://unpkg.com/lucide@latest"></script>
+  <link rel="icon" type="image/svg+xml" href="/favicon.svg">
+  <link rel="stylesheet" href="/styles.css">
+  <script>
+    tailwind.config = {
+      darkMode: 'class',
+      theme: {
+        extend: {
+          colors: {
+            apple: {
+              bg: '#000000',
+              card: '#161617',
+              border: 'rgba(255, 255, 255, 0.08)',
+              text: '#f5f5f7',
+              subtext: '#86868b',
+              blue: '#2997ff',
+            }
+          }
+        }
+      }
+    }
+  </script>
+</head>
+<body class="min-h-screen bg-black text-[#f5f5f7] antialiased selection:bg-neutral-800 selection:text-white">
+
+  <!-- Minimal Global Navigation Bar -->
+  <nav class="sticky top-0 z-50 backdrop-blur-xl bg-black/80 border-b border-white/[0.08]">
+    <div class="max-w-4xl mx-auto px-4 sm:px-6 h-12 flex items-center justify-between">
+      <div class="flex items-center gap-2">
+        <span class="font-semibold text-sm tracking-tight text-white flex items-center gap-2">
+          <svg class="w-4 h-4 text-white" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+            <rect x="2" y="3" width="20" height="14" rx="2"></rect>
+            <line x1="8" y1="21" x2="16" y2="21"></line>
+            <line x1="12" y1="17" x2="12" y2="21"></line>
+          </svg>
+          Media Studio
+        </span>
+      </div>
+    </div>
+  </nav>
+
+  <!-- Main Container -->
+  <div class="max-w-4xl mx-auto px-4 sm:px-6 py-8 sm:py-12 flex flex-col min-h-[calc(100vh-3rem)]">
+
+    <!-- Platform Selector (Segmented Control) -->
+    <div class="flex items-center justify-center pb-8">
+      <div class="inline-flex p-1 bg-[#161617] rounded-full border border-white/[0.08] shadow-sm">
+        <button 
+          type="button" 
+          id="tabPlatformYoutube" 
+          class="px-5 py-1.5 rounded-full text-xs sm:text-sm font-medium flex items-center gap-2 bg-[#2c2c2e] text-white shadow-sm transition-all"
+        >
+          <!-- YouTube Logo SVG -->
+          <svg class="w-4 h-4 text-[#ff0000]" viewBox="0 0 24 24" fill="currentColor">
+            <path d="M23.498 6.186a3.016 3.016 0 0 0-2.122-2.136C19.505 3.545 12 3.545 12 3.545s-7.505 0-9.377.505A3.017 3.017 0 0 0 .502 6.186C0 8.07 0 12 0 12s0 3.93.502 5.814a3.016 3.016 0 0 0 2.122 2.136c1.871.505 9.376.505 9.376.505s7.505 0 9.377-.505a3.015 3.015 0 0 0 2.122-2.136C24 15.93 24 12 24 12s0-3.93-.502-5.814zM9.545 15.568V8.432L15.818 12l-6.273 3.568z"/>
+          </svg>
+          <span>YouTube</span>
+        </button>
+        <button 
+          type="button" 
+          id="tabPlatformTiktok" 
+          class="px-5 py-1.5 rounded-full text-xs sm:text-sm font-medium flex items-center gap-2 text-[#86868b] hover:text-white transition-all"
+        >
+          <!-- TikTok Logo SVG -->
+          <svg class="w-4 h-4 text-white" viewBox="0 0 24 24" fill="currentColor">
+            <path d="M19.59 6.69a4.83 4.83 0 0 1-3.77-4.25V2h-3.45v13.67a2.89 2.89 0 0 1-5.2 1.74 2.89 2.89 0 0 1 2.31-4.64c.29 0 .58.04.86.11V9.4a6.33 6.33 0 0 0-6.17 6.35 6.34 6.34 0 0 0 6.34 6.34 6.34 6.34 0 0 0 6.34-6.34V8.5a8.28 8.28 0 0 0 4.84 1.55v-3.36z"/>
+          </svg>
+          <span>TikTok</span>
+        </button>
+      </div>
+    </div>
+
+    <!-- Main Content Flow -->
+    <main class="flex-1 space-y-8">
+
+      <!-- ================= SECTION 1: YOUTUBE ================= -->
+      <section id="screenYoutube" class="space-y-8 animate-fade-in">
+        
+        <!-- Header -->
+        <div class="text-center space-y-2">
+          <h2 class="text-3xl sm:text-4xl font-semibold tracking-tight text-white">
+            Descarga de YouTube
+          </h2>
+          <p class="text-sm sm:text-base text-[#86868b] max-w-lg mx-auto font-normal">
+            Formatos universales en máxima calidad. Compatible con Android, Windows, Mac, iOS y Linux.
+          </p>
+        </div>
+
+        <!-- Search Bar Card -->
+        <div class="apple-card p-3 sm:p-4">
+          <form id="urlForm" class="flex flex-col sm:flex-row items-stretch gap-2.5">
+            <div class="relative flex-1 flex items-center">
+              <div class="absolute left-3.5 text-[#86868b] pointer-events-none">
+                <i data-lucide="link" class="w-4 h-4"></i>
+              </div>
+              <input 
+                type="text" 
+                id="videoUrl" 
+                placeholder="https://www.youtube.com/watch?v=..." 
+                class="apple-input w-full text-sm pl-10 pr-20 py-3 text-white placeholder:text-[#55555a]"
+                autocomplete="off"
+              />
+              <div class="absolute right-2.5">
+                <button 
+                  type="button" 
+                  id="btnPaste" 
+                  class="apple-btn-secondary px-2.5 py-1 rounded-lg text-xs font-medium"
+                >
+                  Pegar
+                </button>
+              </div>
+            </div>
+            <button 
+              type="submit" 
+              id="btnAnalyze" 
+              class="apple-btn-primary px-6 py-3 rounded-xl text-sm font-medium flex items-center justify-center gap-2"
+            >
+              <span>Analizar</span>
+            </button>
+          </form>
+
+          <!-- Quick Test Samples -->
+          <div class="mt-3 pt-3 border-t border-white/[0.06] flex items-center justify-between gap-2 text-xs text-[#86868b]">
+            <span class="text-[#55555a]">Ejemplos:</span>
+            <div class="flex items-center gap-2 flex-wrap">
+              <button type="button" class="sample-link text-[#86868b] hover:text-white transition" data-url="https://www.youtube.com/watch?v=jNQXAC9IVRw">
+                Me at the zoo
+              </button>
+              <span class="text-[#333336]">•</span>
+              <button type="button" class="sample-link text-[#86868b] hover:text-white transition" data-url="https://www.youtube.com/watch?v=aqz-KE-bpKQ">
+                Big Buck Bunny 4K
+              </button>
+            </div>
+          </div>
+        </div>
+
+        <!-- Video Result Preview Card -->
+        <div id="videoPreviewSection" class="hidden apple-card p-5 sm:p-6 space-y-6 animate-fade-in">
+          
+          <!-- Media Header -->
+          <div class="grid grid-cols-1 md:grid-cols-12 gap-5 items-start">
+            <!-- Thumbnail -->
+            <div class="md:col-span-5 relative rounded-xl overflow-hidden aspect-video bg-neutral-900 border border-white/10">
+              <img id="metaThumbnail" src="" alt="Thumbnail" class="w-full h-full object-cover" />
+              <span id="metaDuration" class="absolute bottom-2 right-2 px-1.5 py-0.5 rounded bg-black/80 backdrop-blur-sm text-[11px] font-mono text-white">00:00</span>
+              <span id="maxResBadge" class="absolute top-2 left-2 px-1.5 py-0.5 rounded bg-white/10 backdrop-blur-sm text-[10px] font-semibold text-white">HD</span>
+            </div>
+
+            <!-- Details -->
+            <div class="md:col-span-7 flex flex-col justify-between h-full space-y-3">
+              <div>
+                <h3 id="metaTitle" class="text-base sm:text-lg font-semibold text-white leading-snug">
+                  Título del video
+                </h3>
+                <div class="flex items-center gap-2 mt-1.5 text-xs text-[#86868b]">
+                  <span id="metaChannel" class="text-white font-medium">Canal</span>
+                  <span>•</span>
+                  <span id="metaViews">0 vistas</span>
+                </div>
+              </div>
+
+              <!-- Available Resolutions Detected -->
+              <div class="pt-2 border-t border-white/[0.06]">
+                <div class="text-[11px] text-[#86868b] mb-1.5 font-medium">Resoluciones nativas disponibles:</div>
+                <div id="resChips" class="flex flex-wrap gap-1.5"></div>
+              </div>
+            </div>
+          </div>
+
+          <!-- Format Chooser -->
+          <div class="pt-4 border-t border-white/[0.06] space-y-4">
+            <!-- Tab Video vs Audio -->
+            <div class="flex items-center justify-between">
+              <div class="inline-flex p-1 bg-[#121214] rounded-lg border border-white/[0.06]">
+                <button type="button" id="tabVideo" class="px-4 py-1 text-xs font-medium rounded-md bg-[#2c2c2e] text-white transition">
+                  Video MP4
+                </button>
+                <button type="button" id="tabAudio" class="px-4 py-1 text-xs font-medium rounded-md text-[#86868b] hover:text-white transition">
+                  Audio
+                </button>
+              </div>
+              <span class="text-xs text-[#86868b] hidden sm:inline">Compatible con todos los sistemas</span>
+            </div>
+
+            <!-- Video Formats Grid -->
+            <div id="videoFormatsPanel" class="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-2.5">
+              <!-- 1080p Full HD (Recommended) -->
+              <label class="format-option-card relative cursor-pointer block p-3.5 rounded-xl border border-white/20 bg-white/[0.04] transition">
+                <input type="radio" name="format_choice" value="mp4-1080" checked class="sr-only">
+                <div class="flex items-center justify-between mb-1">
+                  <div class="text-xs font-semibold text-white">Full HD 1080p</div>
+                  <span class="text-[10px] font-medium text-white px-1.5 py-0.5 rounded bg-white/10">Recomendado</span>
+                </div>
+                <div class="text-[11px] text-[#86868b]">Universal • H.264 + AAC</div>
+              </label>
+
+              <!-- Max Quality -->
+              <label class="format-option-card relative cursor-pointer block p-3.5 rounded-xl border border-white/[0.08] bg-[#121214] transition">
+                <input type="radio" name="format_choice" value="mp4-best" class="sr-only">
+                <div class="flex items-center justify-between mb-1">
+                  <div class="text-xs font-semibold text-white">Máxima Resolución</div>
+                  <span class="text-[10px] text-[#86868b]">4K / 2K</span>
+                </div>
+                <div class="text-[11px] text-[#86868b]">Mayor densidad de píxeles</div>
+              </label>
+
+              <!-- 720p HD -->
+              <label class="format-option-card relative cursor-pointer block p-3.5 rounded-xl border border-white/[0.08] bg-[#121214] transition">
+                <input type="radio" name="format_choice" value="mp4-720" class="sr-only">
+                <div class="flex items-center justify-between mb-1">
+                  <div class="text-xs font-semibold text-white">HD 720p</div>
+                  <span class="text-[10px] text-[#86868b]">Rápido</span>
+                </div>
+                <div class="text-[11px] text-[#86868b]">Tamaño balanceado y ligero</div>
+              </label>
+
+              <!-- 480p SD -->
+              <label class="format-option-card relative cursor-pointer block p-3.5 rounded-xl border border-white/[0.08] bg-[#121214] transition">
+                <input type="radio" name="format_choice" value="mp4-480" class="sr-only">
+                <div class="flex items-center justify-between mb-1">
+                  <div class="text-xs font-semibold text-white">SD 480p</div>
+                  <span class="text-[10px] text-[#86868b]">Ligero</span>
+                </div>
+                <div class="text-[11px] text-[#86868b]">Mínimo consumo de espacio</div>
+              </label>
+
+              <!-- WEBM -->
+              <label class="format-option-card relative cursor-pointer block p-3.5 rounded-xl border border-white/[0.08] bg-[#121214] transition">
+                <input type="radio" name="format_choice" value="webm-best" class="sr-only">
+                <div class="flex items-center justify-between mb-1">
+                  <div class="text-xs font-semibold text-white">WEBM VP9</div>
+                  <span class="text-[10px] text-[#86868b]">Web</span>
+                </div>
+                <div class="text-[11px] text-[#86868b]">Para navegadores y edición</div>
+              </label>
+            </div>
+
+            <!-- Audio Formats Grid -->
+            <div id="audioFormatsPanel" class="hidden grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-2.5">
+              <!-- MP3 320 -->
+              <label class="format-option-card relative cursor-pointer block p-3.5 rounded-xl border border-white/20 bg-white/[0.04] transition">
+                <input type="radio" name="format_choice" value="mp3-320" class="sr-only">
+                <div class="flex items-center justify-between mb-1">
+                  <div class="text-xs font-semibold text-white">MP3 320 kbps</div>
+                  <span class="text-[10px] font-medium text-white px-1.5 py-0.5 rounded bg-white/10">Estudio</span>
+                </div>
+                <div class="text-[11px] text-[#86868b]">Máxima fidelidad sonora</div>
+              </label>
+
+              <!-- M4A AAC -->
+              <label class="format-option-card relative cursor-pointer block p-3.5 rounded-xl border border-white/[0.08] bg-[#121214] transition">
+                <input type="radio" name="format_choice" value="m4a" class="sr-only">
+                <div class="flex items-center justify-between mb-1">
+                  <div class="text-xs font-semibold text-white">M4A Nativo</div>
+                  <span class="text-[10px] text-[#86868b]">AAC</span>
+                </div>
+                <div class="text-[11px] text-[#86868b]">Pista original directa</div>
+              </label>
+
+              <!-- WAV -->
+              <label class="format-option-card relative cursor-pointer block p-3.5 rounded-xl border border-white/[0.08] bg-[#121214] transition">
+                <input type="radio" name="format_choice" value="wav" class="sr-only">
+                <div class="flex items-center justify-between mb-1">
+                  <div class="text-xs font-semibold text-white">WAV PCM</div>
+                  <span class="text-[10px] text-[#86868b]">Lossless</span>
+                </div>
+                <div class="text-[11px] text-[#86868b]">Audio sin compresión</div>
+              </label>
+            </div>
+
+            <!-- Download CTA -->
+            <div class="pt-3 flex items-center justify-end">
+              <button 
+                type="button" 
+                id="btnStartDownload" 
+                class="apple-btn-primary w-full sm:w-auto px-7 py-3 rounded-xl text-sm font-medium flex items-center justify-center gap-2"
+              >
+                <i data-lucide="arrow-down" class="w-4 h-4"></i>
+                <span>Descargar video</span>
+              </button>
+            </div>
+          </div>
+
+        </div>
+
+      </section>
+
+      <!-- ================= SECTION 2: TIKTOK ================= -->
+      <section id="screenTiktok" class="hidden space-y-8 animate-fade-in">
+        
+        <!-- Header -->
+        <div class="text-center space-y-2">
+          <h2 class="text-3xl sm:text-4xl font-semibold tracking-tight text-white">
+            Descarga de TikTok
+          </h2>
+          <p class="text-sm sm:text-base text-[#86868b] max-w-lg mx-auto font-normal">
+            Flujo original en máxima calidad sin marca de agua ni pérdida de resolución.
+          </p>
+        </div>
+
+        <!-- Search Bar Card -->
+        <div class="apple-card p-3 sm:p-4">
+          <form id="tiktokUrlForm" class="flex flex-col sm:flex-row items-stretch gap-2.5">
+            <div class="relative flex-1 flex items-center">
+              <div class="absolute left-3.5 text-[#86868b] pointer-events-none">
+                <i data-lucide="link" class="w-4 h-4"></i>
+              </div>
+              <input 
+                type="text" 
+                id="tiktokUrl" 
+                placeholder="https://www.tiktok.com/@usuario/video/... o https://vm.tiktok.com/..." 
+                class="apple-input w-full text-sm pl-10 pr-20 py-3 text-white placeholder:text-[#55555a]"
+                autocomplete="off"
+              />
+              <div class="absolute right-2.5">
+                <button 
+                  type="button" 
+                  id="btnTiktokPaste" 
+                  class="apple-btn-secondary px-2.5 py-1 rounded-lg text-xs font-medium"
+                >
+                  Pegar
+                </button>
+              </div>
+            </div>
+            <button 
+              type="submit" 
+              id="btnAnalyzeTiktok" 
+              class="apple-btn-primary px-6 py-3 rounded-xl text-sm font-medium flex items-center justify-center gap-2"
+            >
+              <span>Analizar</span>
+            </button>
+          </form>
+
+          <!-- Quick Samples TikTok -->
+          <div class="mt-3 pt-3 border-t border-white/[0.06] flex items-center justify-between gap-2 text-xs text-[#86868b]">
+            <span class="text-[#55555a]">Ejemplo:</span>
+            <button type="button" class="sample-tiktok-link text-[#86868b] hover:text-white transition" data-url="https://www.tiktok.com/@usatravelvideo0/video/7675366937957829919">
+              USA Travel (Video original HD)
+            </button>
+          </div>
+        </div>
+
+        <!-- TikTok Preview Card -->
+        <div id="tiktokPreviewSection" class="hidden apple-card p-5 sm:p-6 space-y-6 animate-fade-in">
+          
+          <div class="grid grid-cols-1 md:grid-cols-12 gap-5 items-start">
+            <!-- Cover -->
+            <div class="md:col-span-4 relative rounded-xl overflow-hidden aspect-[9/13] max-w-[210px] mx-auto md:mx-0 bg-neutral-900 border border-white/10">
+              <img id="tiktokThumbnail" src="" alt="Cover" class="w-full h-full object-cover" />
+              <span id="tiktokDuration" class="absolute bottom-2 right-2 px-1.5 py-0.5 rounded bg-black/80 backdrop-blur-sm text-[11px] font-mono text-white">00:15</span>
+              <span class="absolute top-2 left-2 px-1.5 py-0.5 rounded bg-white/10 backdrop-blur-sm text-[10px] font-semibold text-white">SIN MARCA</span>
+            </div>
+
+            <!-- Details -->
+            <div class="md:col-span-8 flex flex-col justify-between h-full space-y-4">
+              <div>
+                <div class="flex items-center gap-3">
+                  <img id="tiktokAvatar" src="" alt="Avatar" class="w-10 h-10 rounded-full border border-white/10 object-cover" />
+                  <div>
+                    <h4 id="tiktokAuthorName" class="text-sm font-semibold text-white">Creador</h4>
+                    <p id="tiktokAuthorUser" class="text-xs text-[#86868b]">@usuario</p>
+                  </div>
+                </div>
+
+                <p id="tiktokTitle" class="mt-3 text-xs sm:text-sm text-neutral-300 leading-relaxed line-clamp-3">
+                  Descripción...
+                </p>
+
+                <div class="mt-2.5 text-xs text-[#86868b] flex items-center gap-1.5">
+                  <i data-lucide="music" class="w-3.5 h-3.5 text-neutral-400"></i>
+                  <span id="tiktokMusicTitle" class="truncate">Audio original</span>
+                </div>
+              </div>
+
+              <!-- Metrics -->
+              <div class="pt-3 border-t border-white/[0.06] grid grid-cols-3 gap-2 text-center text-xs text-[#86868b]">
+                <div class="p-2 rounded-lg bg-[#121214] border border-white/[0.04]">
+                  <div class="text-[10px] text-[#55555a]">Likes</div>
+                  <div id="tiktokLikes" class="text-xs font-semibold text-white mt-0.5">0</div>
+                </div>
+                <div class="p-2 rounded-lg bg-[#121214] border border-white/[0.04]">
+                  <div class="text-[10px] text-[#55555a]">Comentarios</div>
+                  <div id="tiktokComments" class="text-xs font-semibold text-white mt-0.5">0</div>
+                </div>
+                <div class="p-2 rounded-lg bg-[#121214] border border-white/[0.04]">
+                  <div class="text-[10px] text-[#55555a]">Vistas</div>
+                  <div id="tiktokViews" class="text-xs font-semibold text-white mt-0.5">0</div>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <!-- Format Chooser TikTok -->
+          <div class="pt-4 border-t border-white/[0.06] space-y-4">
+            <div class="grid grid-cols-1 sm:grid-cols-2 gap-2.5">
+              <!-- HD Max Quality No Watermark -->
+              <label class="tiktok-format-card relative cursor-pointer block p-3.5 rounded-xl border border-white/20 bg-white/[0.04] transition">
+                <input type="radio" name="tiktok_format_choice" value="tiktok-mp4-hd" checked class="sr-only">
+                <div class="flex items-center justify-between mb-1">
+                  <div class="text-xs font-semibold text-white">MP4 • Máxima Calidad HD</div>
+                  <span class="text-[10px] font-medium text-white px-1.5 py-0.5 rounded bg-white/10">Original</span>
+                </div>
+                <div class="text-[11px] text-[#86868b]">Flujo original sin marca de agua y sin pérdida</div>
+              </label>
+
+              <!-- MP3 Audio -->
+              <label class="tiktok-format-card relative cursor-pointer block p-3.5 rounded-xl border border-white/[0.08] bg-[#121214] transition">
+                <input type="radio" name="tiktok_format_choice" value="tiktok-mp3" class="sr-only">
+                <div class="flex items-center justify-between mb-1">
+                  <div class="text-xs font-semibold text-white">Audio • MP3 320 kbps</div>
+                  <span class="text-[10px] text-[#86868b]">Sonido</span>
+                </div>
+                <div class="text-[11px] text-[#86868b]">Pista musical limpia extraída en alta fidelidad</div>
+              </label>
+            </div>
+
+            <!-- Download CTA -->
+            <div class="pt-3 flex items-center justify-end">
+              <button 
+                type="button" 
+                id="btnStartTiktokDownload" 
+                class="apple-btn-primary w-full sm:w-auto px-7 py-3 rounded-xl text-sm font-medium flex items-center justify-center gap-2"
+              >
+                <i data-lucide="arrow-down" class="w-4 h-4"></i>
+                <span>Descargar video</span>
+              </button>
+            </div>
+          </div>
+
+        </div>
+
+      </section>
+
+      <!-- Alert Box -->
+      <div id="alertBox" class="hidden apple-card p-4 border border-rose-500/30 text-rose-300 text-xs sm:text-sm flex items-start gap-3 animate-fade-in">
+        <i data-lucide="alert-circle" class="w-4 h-4 flex-shrink-0 text-rose-400 mt-0.5"></i>
+        <div class="flex-1" id="alertMessage"></div>
+        <button id="btnCloseAlert" class="text-rose-400 hover:text-white">
+          <i data-lucide="x" class="w-3.5 h-3.5"></i>
+        </button>
+      </div>
+
+      <!-- Download Active & Completed Card -->
+      <section id="downloadStatusSection" class="hidden apple-card p-5 sm:p-6 animate-fade-in">
+        
+        <!-- Downloading State -->
+        <div id="downloadActiveState" class="space-y-4">
+          <div class="flex items-center justify-between">
+            <div class="space-y-0.5">
+              <h4 id="activeStatusTitle" class="text-sm font-semibold text-white">Descargando...</h4>
+              <p id="activeFormatLabel" class="text-xs text-[#86868b]">Preparando archivo...</p>
+            </div>
+            <span id="progressPercent" class="text-xl font-mono font-semibold text-white">0%</span>
+          </div>
+
+          <!-- Minimal Progress Line -->
+          <div class="w-full h-1.5 bg-[#2c2c2e] rounded-full overflow-hidden">
+            <div id="progressBar" class="h-full bg-white rounded-full transition-all duration-300 w-0"></div>
+          </div>
+
+          <div class="flex items-center justify-between text-xs text-[#86868b] font-mono">
+            <span id="statSpeed">Velocidad: --</span>
+            <span id="statEta">Tiempo restante: --</span>
+          </div>
+        </div>
+
+        <!-- Completed State -->
+        <div id="downloadCompletedState" class="hidden flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
+          <div class="space-y-1">
+            <div class="inline-flex items-center gap-1.5 text-xs text-emerald-400 font-medium">
+              <i data-lucide="check" class="w-3.5 h-3.5"></i>
+              <span>Descarga finalizada</span>
+            </div>
+            <h4 id="completedFileName" class="text-sm sm:text-base font-semibold text-white line-clamp-1">
+              archivo.mp4
+            </h4>
+            <p id="completedFileSize" class="text-xs text-[#86868b] font-mono">0 MB</p>
+          </div>
+
+          <div class="flex items-center gap-2 w-full sm:w-auto">
+            <a 
+              id="btnSaveFile" 
+              href="#" 
+              download 
+              class="apple-btn-primary w-full sm:w-auto px-6 py-2.5 rounded-xl text-xs font-medium flex items-center justify-center gap-1.5"
+            >
+              <i data-lucide="download" class="w-3.5 h-3.5"></i>
+              <span>Guardar archivo</span>
+            </a>
+          </div>
+        </div>
+
+      </section>
+
+      <!-- History Section -->
+      <section class="apple-card p-5 sm:p-6 space-y-4">
+        <div class="flex items-center justify-between pb-3 border-b border-white/[0.06]">
+          <h3 class="text-sm font-semibold text-white">
+            Archivos descargados
+          </h3>
+          <button id="btnRefreshHistory" class="text-[#86868b] hover:text-white transition p-1" title="Actualizar">
+            <i data-lucide="rotate-cw" class="w-3.5 h-3.5"></i>
+          </button>
+        </div>
+
+        <div id="downloadsHistoryList" class="space-y-1 max-h-60 overflow-y-auto pr-1">
+          <div class="text-center py-4 text-xs text-[#86868b]">
+            Cargando archivos...
+          </div>
+        </div>
+      </section>
+
+    </main>
+
+    <!-- Clean Minimalist Footer -->
+    <footer class="py-8 text-center text-xs text-[#86868b] border-t border-white/[0.06] mt-12">
+      <div>Media Studio</div>
+    </footer>
+
+  </div>
+
+  <script src="/app.js"></script>
+</body>
+</html>

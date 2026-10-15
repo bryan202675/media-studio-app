@@ -1,0 +1,125 @@
+/* Apple Minimalist Design System */
+:root {
+  --apple-bg: #000000;
+  --apple-card: #161617;
+  --apple-card-hover: #1c1c1e;
+  --apple-border: rgba(255, 255, 255, 0.08);
+  --apple-border-hover: rgba(255, 255, 255, 0.18);
+  --apple-text: #f5f5f7;
+  --apple-secondary: #86868b;
+  --apple-accent: #2997ff;
+  --apple-surface: #121214;
+}
+
+body {
+  font-family: -apple-system, BlinkMacSystemFont, "SF Pro Display", "SF Pro Text", "Helvetica Neue", Arial, sans-serif;
+  letter-spacing: -0.015em;
+  background-color: var(--apple-bg);
+  color: var(--apple-text);
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+}
+
+/* Apple Card */
+.apple-card {
+  background-color: var(--apple-card);
+  border: 1px solid var(--apple-border);
+  border-radius: 18px;
+  transition: all 0.2s cubic-bezier(0.16, 1, 0.3, 1);
+}
+
+.apple-card:hover {
+  border-color: var(--apple-border-hover);
+}
+
+/* Apple Input */
+.apple-input {
+  background-color: #121214;
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  color: #f5f5f7;
+  border-radius: 12px;
+  transition: border-color 0.2s ease, box-shadow 0.2s ease;
+}
+
+.apple-input:focus {
+  border-color: var(--apple-accent);
+  box-shadow: 0 0 0 3px rgba(41, 151, 255, 0.15);
+  outline: none;
+}
+
+/* Apple Primary Button */
+.apple-btn-primary {
+  background-color: #ffffff;
+  color: #000000;
+  font-weight: 500;
+  letter-spacing: -0.01em;
+  transition: background-color 0.15s ease, transform 0.1s ease;
+}
+
+.apple-btn-primary:hover {
+  background-color: #e5e5e7;
+}
+
+.apple-btn-primary:active {
+  transform: scale(0.98);
+}
+
+/* Apple Secondary Button */
+.apple-btn-secondary {
+  background-color: #1c1c1e;
+  color: #f5f5f7;
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  transition: background-color 0.15s ease, border-color 0.15s ease;
+}
+
+.apple-btn-secondary:hover {
+  background-color: #2c2c2e;
+  border-color: rgba(255, 255, 255, 0.16);
+}
+
+.apple-btn-secondary:active {
+  transform: scale(0.98);
+}
+
+/* Card Selection */
+.format-option-card {
+  transition: border-color 0.18s ease, background-color 0.18s ease;
+}
+
+.format-option-card.selected,
+.tiktok-format-card.selected {
+  border-color: #ffffff !important;
+  background-color: rgba(255, 255, 255, 0.06) !important;
+}
+
+/* Subtle Custom Scrollbar */
+::-webkit-scrollbar {
+  width: 5px;
+  height: 5px;
+}
+::-webkit-scrollbar-track {
+  background: transparent;
+}
+::-webkit-scrollbar-thumb {
+  background: rgba(255, 255, 255, 0.12);
+  border-radius: 10px;
+}
+::-webkit-scrollbar-thumb:hover {
+  background: rgba(255, 255, 255, 0.25);
+}
+
+/* Animations */
+@keyframes fadeIn {
+  from {
+    opacity: 0;
+    transform: translateY(-4px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+.animate-fade-in {
+  animation: fadeIn 0.22s cubic-bezier(0.16, 1, 0.3, 1) forwards;
+}
