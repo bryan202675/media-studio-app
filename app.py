@@ -7,7 +7,7 @@ import threading
 from typing import Dict, Any, Optional
 from pathlib import Path
 
-from fastapi import FastAPI, HTTPException, BackgroundTasks
+from fastapi import FastAPI, HTTPException, BackgroundTasks, APIRouter
 from fastapi.staticfiles import StaticFiles
 from fastapi.responses import FileResponse, JSONResponse
 from fastapi.middleware.cors import CORSMiddleware
@@ -32,6 +32,7 @@ FFMPEG_PATH = "/usr/local/bin/ffmpeg" if os.path.exists("/usr/local/bin/ffmpeg")
 NODE_PATH = "/usr/local/bin/node" if os.path.exists("/usr/local/bin/node") else (shutil.which("node") or None)
 
 app = FastAPI(title="YouTube High-Quality Downloader API", version="1.0.0")
+router = APIRouter()
 
 app.add_middleware(
     CORSMiddleware,
@@ -80,7 +81,7 @@ def format_views(views: Optional[int]) -> str:
         return f"{views / 1_000:.1f}K vistas"
     return f"{views} vistas"
 
-@app.post("/api/info")
+@router.post("/info")
 def get_video_info(req: InfoRequest):
     url = req.url.strip()
     if not url:
@@ -390,7 +391,7 @@ def run_download_job(job_id: str, url: str, format_type: str):
     except Exception as e:
         update_job(status="error", error_message=str(e))
 
-@app.post("/api/download")
+@router.post("/download")
 def start_download(req: DownloadRequest, background_tasks: BackgroundTasks):
     url = req.url.strip()
     if not url:
@@ -432,7 +433,7 @@ def fetch_tiktok_data(url: str) -> dict:
             raise Exception(res.get("msg") or "No se pudo obtener el video de TikTok sin marca de agua.")
         return res["data"]
 
-@app.post("/api/tiktok/info")
+@router.post("/tiktok/info")
 def get_tiktok_info(req: InfoRequest):
     url = req.url.strip()
     if not url or "tiktok.com" not in url:
@@ -607,7 +608,7 @@ def run_tiktok_download_job(job_id: str, url: str, format_type: str):
     except Exception as e:
         update_job(status="error", error_message=str(e))
 
-@app.post("/api/tiktok/download")
+@router.post("/tiktok/download")
 def start_tiktok_download(req: DownloadRequest, background_tasks: BackgroundTasks):
     url = req.url.strip()
     if not url or "tiktok.com" not in url:
@@ -633,7 +634,7 @@ def start_tiktok_download(req: DownloadRequest, background_tasks: BackgroundTask
     background_tasks.add_task(run_tiktok_download_job, job_id, url, req.format_type)
     return {"job_id": job_id}
 
-@app.get("/api/progress/{job_id}")
+@router.get("/progress/{job_id}")
 def get_progress(job_id: str):
     with jobs_lock:
         job = jobs.get(job_id)
@@ -641,7 +642,7 @@ def get_progress(job_id: str):
         raise HTTPException(status_code=404, detail="Descarga no encontrada.")
     return job
 
-@app.api_route("/api/file/{job_id}", methods=["GET", "HEAD"])
+@router.api_route("/file/{job_id}", methods=["GET", "HEAD"])
 def download_file(job_id: str):
     with jobs_lock:
         job = jobs.get(job_id)
@@ -659,7 +660,7 @@ def download_file(job_id: str):
         media_type="application/octet-stream"
     )
 
-@app.api_route("/api/file-by-name/{filename}", methods=["GET", "HEAD"])
+@router.api_route("/file-by-name/{filename}", methods=["GET", "HEAD"])
 def download_file_by_name(filename: str):
     safe_name = Path(filename).name
     filepath = DOWNLOADS_DIR / safe_name
@@ -672,7 +673,7 @@ def download_file_by_name(filename: str):
         media_type="application/octet-stream"
     )
 
-@app.get("/api/downloads")
+@router.get("/downloads")
 def list_downloads():
     files = []
     if DOWNLOADS_DIR.exists():
@@ -687,7 +688,7 @@ def list_downloads():
                 })
     return {"downloads": files[:15]}
 
-@app.post("/api/open-folder")
+@router.post("/open-folder")
 def open_downloads_folder():
     try:
         if sys.platform == "darwin":
@@ -700,14 +701,18 @@ def open_downloads_folder():
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"No se pudo abrir la carpeta: {e}")
 
-@app.get("/api/health")
+@router.get("/health")
 def health():
     return {
         "status": "online",
-        "ffmpeg": os.path.exists(FFMPEG_PATH),
+        "ffmpeg": bool(shutil.which(FFMPEG_PATH) or os.path.exists(FFMPEG_PATH)),
         "node_js_runtime": bool(NODE_PATH),
         "downloads_dir": str(DOWNLOADS_DIR)
     }
+
+# Include all API routes both with prefix '/api' and directly on root
+app.include_router(router, prefix="/api")
+app.include_router(router, prefix="")
 
 # Mount static files (served by Vercel directly in cloud, or locally by FastAPI)
 STATIC_DIR = BASE_DIR / "static"
