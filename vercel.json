@@ -1,0 +1,10 @@
+{
+  "version": 2,
+  "name": "media-studio-app",
+  "rewrites": [
+    {
+      "source": "/api/(.*)",
+      "destination": "/api/index.py"
+    }
+  ]
+}

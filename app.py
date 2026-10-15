@@ -18,12 +18,18 @@ import re
 import urllib.request
 import urllib.parse
 
-BASE_DIR = Path(__file__).resolve().parent
-DOWNLOADS_DIR = BASE_DIR / "downloads"
-DOWNLOADS_DIR.mkdir(exist_ok=True)
+import shutil
 
-FFMPEG_PATH = "/usr/local/bin/ffmpeg" if os.path.exists("/usr/local/bin/ffmpeg") else "ffmpeg"
-NODE_PATH = "/usr/local/bin/node" if os.path.exists("/usr/local/bin/node") else None
+BASE_DIR = Path(__file__).resolve().parent
+# On Vercel serverless environment, filesystem is read-only except /tmp
+if os.environ.get("VERCEL") or not os.access(str(BASE_DIR), os.W_OK):
+    DOWNLOADS_DIR = Path("/tmp/downloads")
+else:
+    DOWNLOADS_DIR = BASE_DIR / "downloads"
+DOWNLOADS_DIR.mkdir(parents=True, exist_ok=True)
+
+FFMPEG_PATH = "/usr/local/bin/ffmpeg" if os.path.exists("/usr/local/bin/ffmpeg") else (shutil.which("ffmpeg") or "ffmpeg")
+NODE_PATH = "/usr/local/bin/node" if os.path.exists("/usr/local/bin/node") else (shutil.which("node") or None)
 
 app = FastAPI(title="YouTube High-Quality Downloader API", version="1.0.0")
 
@@ -567,17 +573,20 @@ def run_tiktok_download_job(job_id: str, url: str, format_type: str):
                     last_update = now
 
         if is_audio:
-            update_job(status="processing", progress=99.0, speed="Extrayendo MP3 con FFmpeg...", eta="Casi listo...")
-            cmd = [
-                FFMPEG_PATH, "-y",
-                "-i", str(temp_file),
-                "-vn", "-c:a", "libmp3lame",
-                "-b:a", "320k",
-                str(final_file)
-            ]
-            subprocess.run(cmd, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL, check=True)
-            if os.path.exists(temp_file):
-                os.remove(temp_file)
+            if shutil.which(FFMPEG_PATH) or os.path.exists(FFMPEG_PATH):
+                update_job(status="processing", progress=99.0, speed="Extrayendo MP3 con FFmpeg...", eta="Casi listo...")
+                cmd = [
+                    FFMPEG_PATH, "-y",
+                    "-i", str(temp_file),
+                    "-vn", "-c:a", "libmp3lame",
+                    "-b:a", "320k",
+                    str(final_file)
+                ]
+                subprocess.run(cmd, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL, check=True)
+                if os.path.exists(temp_file):
+                    os.remove(temp_file)
+            else:
+                final_file = temp_file
         else:
             final_file = temp_file
             if str(final_file).lower().endswith(".mp4"):
@@ -700,10 +709,10 @@ def health():
         "downloads_dir": str(DOWNLOADS_DIR)
     }
 
-# Mount static files
+# Mount static files (served by Vercel directly in cloud, or locally by FastAPI)
 STATIC_DIR = BASE_DIR / "static"
-STATIC_DIR.mkdir(exist_ok=True)
-app.mount("/", StaticFiles(directory=str(STATIC_DIR), html=True), name="static")
+if STATIC_DIR.exists():
+    app.mount("/", StaticFiles(directory=str(STATIC_DIR), html=True), name="static")
 
 if __name__ == "__main__":
     import uvicorn
