@@ -18,7 +18,7 @@ document.addEventListener("DOMContentLoaded", () => {
 
   function switchPlatform(platform) {
     hideAlert();
-    downloadStatusSection.classList.add("hidden");
+    if (downloadStatusSection) downloadStatusSection.classList.add("hidden");
 
     if (platform === "youtube") {
       tabPlatformYoutube.className = "px-5 py-1.5 rounded-full text-xs sm:text-sm font-medium flex items-center gap-2 bg-[#2c2c2e] text-white shadow-sm transition-all";
@@ -34,8 +34,8 @@ document.addEventListener("DOMContentLoaded", () => {
     if (window.lucide) window.lucide.createIcons();
   }
 
-  tabPlatformYoutube.addEventListener("click", () => switchPlatform("youtube"));
-  tabPlatformTiktok.addEventListener("click", () => switchPlatform("tiktok"));
+  if (tabPlatformYoutube) tabPlatformYoutube.addEventListener("click", () => switchPlatform("youtube"));
+  if (tabPlatformTiktok) tabPlatformTiktok.addEventListener("click", () => switchPlatform("tiktok"));
 
   // --- Shared Alert ---
   const alertBox = document.getElementById("alertBox");
@@ -43,18 +43,19 @@ document.addEventListener("DOMContentLoaded", () => {
   const btnCloseAlert = document.getElementById("btnCloseAlert");
 
   function showAlert(msg) {
+    if (!alertBox || !alertMessage) return;
     alertMessage.textContent = msg;
     alertBox.classList.remove("hidden");
     if (window.lucide) window.lucide.createIcons();
   }
 
   function hideAlert() {
-    alertBox.classList.add("hidden");
+    if (alertBox) alertBox.classList.add("hidden");
   }
 
-  btnCloseAlert.addEventListener("click", hideAlert);
+  if (btnCloseAlert) btnCloseAlert.addEventListener("click", hideAlert);
 
-  // --- Shared Progress Elements ---
+  // --- Shared Progress & Result Elements ---
   const downloadStatusSection = document.getElementById("downloadStatusSection");
   const downloadActiveState = document.getElementById("downloadActiveState");
   const downloadCompletedState = document.getElementById("downloadCompletedState");
@@ -70,51 +71,73 @@ document.addEventListener("DOMContentLoaded", () => {
 
   let pollInterval = null;
 
-  // --- YouTube Section Logic ---
+  // --- YouTube Section Elements ---
   const urlForm = document.getElementById("urlForm");
-  const youtubeUrlInput = document.getElementById("youtubeUrlInput");
+  const videoUrlInput = document.getElementById("videoUrl");
+  const btnPaste = document.getElementById("btnPaste");
   const btnAnalyze = document.getElementById("btnAnalyze");
   const videoPreviewSection = document.getElementById("videoPreviewSection");
 
-  const ytThumbnail = document.getElementById("ytThumbnail");
-  const ytDuration = document.getElementById("ytDuration");
-  const ytChannel = document.getElementById("ytChannel");
-  const ytViews = document.getElementById("ytViews");
-  const ytUploadDate = document.getElementById("ytUploadDate");
-  const ytTitle = document.getElementById("ytTitle");
+  const metaThumbnail = document.getElementById("metaThumbnail");
+  const metaDuration = document.getElementById("metaDuration");
+  const maxResBadge = document.getElementById("maxResBadge");
+  const metaTitle = document.getElementById("metaTitle");
+  const metaChannel = document.getElementById("metaChannel");
+  const metaViews = document.getElementById("metaViews");
+  const resChips = document.getElementById("resChips");
 
-  const tabTypeVideo = document.getElementById("tabTypeVideo");
-  const tabTypeAudio = document.getElementById("tabTypeAudio");
+  const tabVideo = document.getElementById("tabVideo");
+  const tabAudio = document.getElementById("tabAudio");
   const videoFormatsPanel = document.getElementById("videoFormatsPanel");
   const audioFormatsPanel = document.getElementById("audioFormatsPanel");
   const formatCards = document.querySelectorAll(".format-option-card");
   const btnStartDownload = document.getElementById("btnStartDownload");
 
+  // Paste handler
+  if (btnPaste && videoUrlInput) {
+    btnPaste.addEventListener("click", async () => {
+      try {
+        const text = await navigator.clipboard.readText();
+        if (text) videoUrlInput.value = text.trim();
+      } catch (e) {
+        videoUrlInput.focus();
+      }
+    });
+  }
+
+  // Quick Samples YouTube
   document.querySelectorAll(".sample-link").forEach((btn) => {
     btn.addEventListener("click", () => {
       const u = btn.getAttribute("data-url");
-      youtubeUrlInput.value = u;
-      analyzeYoutube(u);
+      if (videoUrlInput) {
+        videoUrlInput.value = u;
+        analyzeYoutube(u);
+      }
     });
   });
 
-  urlForm.addEventListener("submit", (e) => {
-    e.preventDefault();
-    const u = youtubeUrlInput.value.trim();
-    if (!u) {
-      showAlert("Ingresa un enlace de YouTube.");
-      return;
-    }
-    analyzeYoutube(u);
-  });
+  // Submit YouTube
+  if (urlForm) {
+    urlForm.addEventListener("submit", (e) => {
+      e.preventDefault();
+      const u = (videoUrlInput ? videoUrlInput.value : "").trim();
+      if (!u) {
+        showAlert("Por favor pega un enlace de YouTube.");
+        return;
+      }
+      analyzeYoutube(u);
+    });
+  }
 
   async function analyzeYoutube(url) {
     hideAlert();
-    videoPreviewSection.classList.add("hidden");
-    downloadStatusSection.classList.add("hidden");
+    if (videoPreviewSection) videoPreviewSection.classList.add("hidden");
+    if (downloadStatusSection) downloadStatusSection.classList.add("hidden");
 
-    btnAnalyze.disabled = true;
-    btnAnalyze.innerHTML = `<span>Analizando...</span>`;
+    if (btnAnalyze) {
+      btnAnalyze.disabled = true;
+      btnAnalyze.innerHTML = `<span>Analizando...</span>`;
+    }
 
     try {
       const res = await fetch(getApiUrl("/api/info"), {
@@ -127,46 +150,60 @@ document.addEventListener("DOMContentLoaded", () => {
 
       renderYoutube(data);
     } catch (err) {
-      showAlert(err.message);
+      showAlert(err.message || "Error al conectar con el servidor.");
     } finally {
-      btnAnalyze.disabled = false;
-      btnAnalyze.innerHTML = `<span>Analizar</span>`;
+      if (btnAnalyze) {
+        btnAnalyze.disabled = false;
+        btnAnalyze.innerHTML = `<span>Analizar</span>`;
+      }
     }
   }
 
   function renderYoutube(data) {
-    ytThumbnail.src = data.thumbnail || "";
-    ytDuration.textContent = data.duration_str || "00:00";
-    ytChannel.textContent = data.uploader || "YouTube";
-    ytViews.textContent = data.views_str || "";
-    ytUploadDate.textContent = data.upload_date || "";
-    ytTitle.textContent = data.title || "Video";
+    if (metaThumbnail) metaThumbnail.src = data.thumbnail || "";
+    if (metaDuration) metaDuration.textContent = data.duration_str || "00:00";
+    if (metaTitle) metaTitle.textContent = data.title || "Video";
+    if (metaChannel) metaChannel.textContent = data.channel || data.uploader || "YouTube";
+    if (metaViews) metaViews.textContent = data.views_str || "";
+    if (maxResBadge) maxResBadge.textContent = data.max_resolution || "HD";
 
-    videoPreviewSection.classList.remove("hidden");
+    if (resChips && Array.isArray(data.available_resolutions)) {
+      resChips.innerHTML = data.available_resolutions.map(r => 
+        `<span class="px-2 py-0.5 rounded bg-white/[0.06] text-[11px] text-[#86868b] border border-white/[0.04]">${r}p</span>`
+      ).join("");
+    }
+
+    if (videoPreviewSection) {
+      videoPreviewSection.classList.remove("hidden");
+      videoPreviewSection.scrollIntoView({ behavior: "smooth", block: "nearest" });
+    }
     if (window.lucide) window.lucide.createIcons();
-    videoPreviewSection.scrollIntoView({ behavior: "smooth", block: "nearest" });
   }
 
-  tabTypeVideo.addEventListener("click", () => {
-    tabTypeVideo.className = "px-4 py-1 rounded-full font-medium bg-[#2c2c2e] text-white shadow-sm transition-all";
-    tabTypeAudio.className = "px-4 py-1 rounded-full font-medium text-[#86868b] hover:text-white transition-all";
-    videoFormatsPanel.classList.remove("hidden");
-    audioFormatsPanel.classList.add("hidden");
+  // Format Switch Tabs (Video vs Audio)
+  if (tabVideo && tabAudio && videoFormatsPanel && audioFormatsPanel) {
+    tabVideo.addEventListener("click", () => {
+      tabVideo.className = "px-4 py-1 text-xs font-medium rounded-md bg-[#2c2c2e] text-white transition";
+      tabAudio.className = "px-4 py-1 text-xs font-medium rounded-md text-[#86868b] hover:text-white transition";
+      videoFormatsPanel.classList.remove("hidden");
+      audioFormatsPanel.classList.add("hidden");
 
-    const r = videoFormatsPanel.querySelector('input[type="radio"]');
-    if (r) r.click();
-  });
+      const r = videoFormatsPanel.querySelector('input[type="radio"]');
+      if (r) r.click();
+    });
 
-  tabTypeAudio.addEventListener("click", () => {
-    tabTypeAudio.className = "px-4 py-1 rounded-full font-medium bg-[#2c2c2e] text-white shadow-sm transition-all";
-    tabTypeVideo.className = "px-4 py-1 rounded-full font-medium text-[#86868b] hover:text-white transition-all";
-    audioFormatsPanel.classList.remove("hidden");
-    videoFormatsPanel.classList.add("hidden");
+    tabAudio.addEventListener("click", () => {
+      tabAudio.className = "px-4 py-1 text-xs font-medium rounded-md bg-[#2c2c2e] text-white transition";
+      tabVideo.className = "px-4 py-1 text-xs font-medium rounded-md text-[#86868b] hover:text-white transition";
+      audioFormatsPanel.classList.remove("hidden");
+      videoFormatsPanel.classList.add("hidden");
 
-    const r = audioFormatsPanel.querySelector('input[type="radio"]');
-    if (r) r.click();
-  });
+      const r = audioFormatsPanel.querySelector('input[type="radio"]');
+      if (r) r.click();
+    });
+  }
 
+  // Format Selection Cards
   formatCards.forEach((card) => {
     card.addEventListener("click", () => {
       formatCards.forEach((c) => {
@@ -182,25 +219,29 @@ document.addEventListener("DOMContentLoaded", () => {
     });
   });
 
-  btnStartDownload.addEventListener("click", () => {
-    const radio = document.querySelector('input[name="format_choice"]:checked');
-    const formatType = radio ? radio.value : "mp4-best";
-    const url = youtubeUrlInput.value.trim();
-    if (!url) {
-      showAlert("Ingresa una URL válida.");
-      return;
-    }
+  // Start Download YouTube
+  if (btnStartDownload) {
+    btnStartDownload.addEventListener("click", () => {
+      const radio = document.querySelector('input[name="format_choice"]:checked');
+      const formatType = radio ? radio.value : "mp4-1080";
+      const url = (videoUrlInput ? videoUrlInput.value : "").trim();
+      if (!url) {
+        showAlert("Ingresa una URL válida de YouTube.");
+        return;
+      }
 
-    startDownloadJob(
-      getApiUrl("/api/download"),
-      { url, format_type: formatType },
-      formatType.toUpperCase()
-    );
-  });
+      startDownloadJob(
+        getApiUrl("/api/download"),
+        { url, format_type: formatType },
+        formatType.toUpperCase()
+      );
+    });
+  }
 
-  // --- TikTok Section Logic ---
+  // --- TikTok Section Elements ---
   const tiktokUrlForm = document.getElementById("tiktokUrlForm");
-  const tiktokUrlInput = document.getElementById("tiktokUrlInput");
+  const tiktokUrlInput = document.getElementById("tiktokUrl");
+  const btnTiktokPaste = document.getElementById("btnTiktokPaste");
   const btnAnalyzeTiktok = document.getElementById("btnAnalyzeTiktok");
   const tiktokPreviewSection = document.getElementById("tiktokPreviewSection");
 
@@ -220,31 +261,51 @@ document.addEventListener("DOMContentLoaded", () => {
 
   let currentTiktokData = null;
 
+  // Paste TikTok
+  if (btnTiktokPaste && tiktokUrlInput) {
+    btnTiktokPaste.addEventListener("click", async () => {
+      try {
+        const text = await navigator.clipboard.readText();
+        if (text) tiktokUrlInput.value = text.trim();
+      } catch (e) {
+        tiktokUrlInput.focus();
+      }
+    });
+  }
+
+  // Sample TikTok
   document.querySelectorAll(".sample-tiktok-link").forEach((btn) => {
     btn.addEventListener("click", () => {
       const u = btn.getAttribute("data-url");
-      tiktokUrlInput.value = u;
-      analyzeTiktok(u);
+      if (tiktokUrlInput) {
+        tiktokUrlInput.value = u;
+        analyzeTiktok(u);
+      }
     });
   });
 
-  tiktokUrlForm.addEventListener("submit", (e) => {
-    e.preventDefault();
-    const u = tiktokUrlInput.value.trim();
-    if (!u) {
-      showAlert("Ingresa un enlace de TikTok.");
-      return;
-    }
-    analyzeTiktok(u);
-  });
+  // Submit TikTok
+  if (tiktokUrlForm) {
+    tiktokUrlForm.addEventListener("submit", (e) => {
+      e.preventDefault();
+      const u = (tiktokUrlInput ? tiktokUrlInput.value : "").trim();
+      if (!u) {
+        showAlert("Ingresa un enlace de TikTok.");
+        return;
+      }
+      analyzeTiktok(u);
+    });
+  }
 
   async function analyzeTiktok(url) {
     hideAlert();
-    tiktokPreviewSection.classList.add("hidden");
-    downloadStatusSection.classList.add("hidden");
+    if (tiktokPreviewSection) tiktokPreviewSection.classList.add("hidden");
+    if (downloadStatusSection) downloadStatusSection.classList.add("hidden");
 
-    btnAnalyzeTiktok.disabled = true;
-    btnAnalyzeTiktok.innerHTML = `<span>Analizando...</span>`;
+    if (btnAnalyzeTiktok) {
+      btnAnalyzeTiktok.disabled = true;
+      btnAnalyzeTiktok.innerHTML = `<span>Analizando...</span>`;
+    }
 
     try {
       const res = await fetch(getApiUrl("/api/tiktok/info"), {
@@ -258,28 +319,32 @@ document.addEventListener("DOMContentLoaded", () => {
       currentTiktokData = data;
       renderTiktok(data);
     } catch (err) {
-      showAlert(err.message);
+      showAlert(err.message || "Error al analizar el enlace de TikTok.");
     } finally {
-      btnAnalyzeTiktok.disabled = false;
-      btnAnalyzeTiktok.innerHTML = `<span>Analizar</span>`;
+      if (btnAnalyzeTiktok) {
+        btnAnalyzeTiktok.disabled = false;
+        btnAnalyzeTiktok.innerHTML = `<span>Analizar</span>`;
+      }
     }
   }
 
   function renderTiktok(data) {
-    tiktokThumbnail.src = data.cover || "";
-    tiktokDuration.textContent = data.duration_str || "00:15";
-    tiktokAvatar.src = data.avatar || "";
-    tiktokAuthorName.textContent = data.author_name || "Creador";
-    tiktokAuthorUser.textContent = data.author_username || "@usuario";
-    tiktokTitle.textContent = data.title || "Video de TikTok";
-    tiktokMusicTitle.textContent = data.music_title || "Audio original";
-    tiktokLikes.textContent = data.likes_str || "0";
-    tiktokComments.textContent = data.comments_str || "0";
-    tiktokViews.textContent = data.views_str || "0";
+    if (tiktokThumbnail) tiktokThumbnail.src = data.cover || "";
+    if (tiktokDuration) tiktokDuration.textContent = data.duration_str || "00:15";
+    if (tiktokAvatar) tiktokAvatar.src = data.avatar || "";
+    if (tiktokAuthorName) tiktokAuthorName.textContent = data.author_name || "Creador";
+    if (tiktokAuthorUser) tiktokAuthorUser.textContent = data.author_username || "@usuario";
+    if (tiktokTitle) tiktokTitle.textContent = data.title || "Video de TikTok";
+    if (tiktokMusicTitle) tiktokMusicTitle.textContent = data.music_title || "Audio original";
+    if (tiktokLikes) tiktokLikes.textContent = data.likes_str || "0";
+    if (tiktokComments) tiktokComments.textContent = data.comments_str || "0";
+    if (tiktokViews) tiktokViews.textContent = data.views_str || "0";
 
-    tiktokPreviewSection.classList.remove("hidden");
+    if (tiktokPreviewSection) {
+      tiktokPreviewSection.classList.remove("hidden");
+      tiktokPreviewSection.scrollIntoView({ behavior: "smooth", block: "nearest" });
+    }
     if (window.lucide) window.lucide.createIcons();
-    tiktokPreviewSection.scrollIntoView({ behavior: "smooth", block: "nearest" });
   }
 
   tiktokFormatCards.forEach((card) => {
@@ -297,38 +362,39 @@ document.addEventListener("DOMContentLoaded", () => {
     });
   });
 
-  btnStartTiktokDownload.addEventListener("click", () => {
-    const radio = document.querySelector('input[name="tiktok_format_choice"]:checked');
-    const formatType = radio ? radio.value : "tiktok-mp4-hd";
-    const url = tiktokUrlInput.value.trim();
-    if (!url) {
-      showAlert("Ingresa una URL válida de TikTok.");
-      return;
-    }
+  if (btnStartTiktokDownload) {
+    btnStartTiktokDownload.addEventListener("click", () => {
+      const radio = document.querySelector('input[name="tiktok_format_choice"]:checked');
+      const formatType = radio ? radio.value : "tiktok-mp4-hd";
+      const url = (tiktokUrlInput ? tiktokUrlInput.value : "").trim();
+      if (!url) {
+        showAlert("Ingresa una URL válida de TikTok.");
+        return;
+      }
 
-    // Direct CDN download optimization for TikTok HD without watermark:
-    // If on serverless without FFmpeg, bypass server limits directly!
-    if (formatType === "tiktok-mp4-hd" && currentTiktokData?.direct_video_hd && (!currentBackendHealth || !currentBackendHealth.ffmpeg)) {
-      downloadStatusSection.classList.remove("hidden");
-      downloadActiveState.classList.add("hidden");
-      downloadCompletedState.classList.remove("hidden");
+      // Fast Direct Download bypass if direct CDN URL is available
+      if (formatType === "tiktok-mp4-hd" && currentTiktokData?.direct_video_hd) {
+        downloadStatusSection.classList.remove("hidden");
+        downloadActiveState.classList.add("hidden");
+        downloadCompletedState.classList.remove("hidden");
 
-      const cleanTitle = (currentTiktokData.title || "tiktok").replace(/[^a-zA-Z0-9_\-\s]/g, "").trim().substring(0, 45) + ".mp4";
-      completedFileName.textContent = cleanTitle;
-      completedFileSize.textContent = currentTiktokData.size_mb || "Máxima Calidad HD";
-      btnSaveFile.href = currentTiktokData.direct_video_hd;
-      btnSaveFile.setAttribute("download", cleanTitle);
-      btnSaveFile.setAttribute("target", "_blank");
-      downloadStatusSection.scrollIntoView({ behavior: "smooth", block: "nearest" });
-      return;
-    }
+        const cleanTitle = (currentTiktokData.title || "tiktok").replace(/[^a-zA-Z0-9_\-\s]/g, "").trim().substring(0, 45) + ".mp4";
+        completedFileName.textContent = cleanTitle;
+        completedFileSize.textContent = currentTiktokData.size_mb || "Máxima Calidad HD";
+        btnSaveFile.href = currentTiktokData.direct_video_hd;
+        btnSaveFile.setAttribute("download", cleanTitle);
+        btnSaveFile.setAttribute("target", "_blank");
+        downloadStatusSection.scrollIntoView({ behavior: "smooth", block: "nearest" });
+        return;
+      }
 
-    startDownloadJob(
-      getApiUrl("/api/tiktok/download"),
-      { url, format_type: formatType },
-      formatType === "tiktok-mp4-hd" ? "TIKTOK HD ORIGINAL" : "TIKTOK MP3 320K"
-    );
-  });
+      startDownloadJob(
+        getApiUrl("/api/tiktok/download"),
+        { url, format_type: formatType },
+        formatType === "tiktok-mp4-hd" ? "TIKTOK HD ORIGINAL" : "TIKTOK MP3 320K"
+      );
+    });
+  }
 
   // --- Core Downloader Engine ---
   async function startDownloadJob(endpoint, payload, label) {
@@ -357,7 +423,7 @@ document.addEventListener("DOMContentLoaded", () => {
 
       pollProgress(data.job_id);
     } catch (err) {
-      showAlert(err.message);
+      showAlert(err.message || "Error al contactar al motor de descargas.");
       downloadStatusSection.classList.add("hidden");
     }
   }
@@ -379,7 +445,7 @@ document.addEventListener("DOMContentLoaded", () => {
 
         if (status === "queued") {
           activeStatusTitle.textContent = "En cola de espera...";
-          statSpeed.textContent = "Esperando slot...";
+          statSpeed.textContent = "Iniciando motor...";
         } else if (status === "downloading") {
           activeStatusTitle.textContent = "Descargando archivo...";
           const pct = job.progress || 0;
@@ -388,10 +454,10 @@ document.addEventListener("DOMContentLoaded", () => {
           statSpeed.textContent = job.speed || "--";
           statEta.textContent = job.eta ? `Restante: ${job.eta}` : "--";
         } else if (status === "processing") {
-          activeStatusTitle.textContent = "Finalizando procesamiento...";
+          activeStatusTitle.textContent = "Procesando códecs de alta fidelidad...";
           progressPercent.textContent = "99%";
           progressBar.style.width = "99%";
-          statSpeed.textContent = "FFmpeg";
+          statSpeed.textContent = "FFmpeg Engine";
           statEta.textContent = "Casi listo...";
         } else if (status === "completed") {
           clearInterval(pollInterval);
@@ -403,6 +469,7 @@ document.addEventListener("DOMContentLoaded", () => {
           completedFileSize.textContent = job.size_mb ? `Tamaño: ${job.size_mb}` : "Listo";
           btnSaveFile.href = getApiUrl(`/api/file/${jobId}`);
           btnSaveFile.setAttribute("download", job.filename || "descarga");
+          btnSaveFile.removeAttribute("target");
 
           if (window.lucide) window.lucide.createIcons();
           loadHistory();
@@ -422,6 +489,7 @@ document.addEventListener("DOMContentLoaded", () => {
   const btnRefreshHistory = document.getElementById("btnRefreshHistory");
 
   async function loadHistory() {
+    if (!downloadsHistoryList) return;
     try {
       const res = await fetch(getApiUrl("/api/downloads"));
       const data = await res.json();
@@ -469,7 +537,7 @@ document.addEventListener("DOMContentLoaded", () => {
     }
   }
 
-  btnRefreshHistory.addEventListener("click", loadHistory);
+  if (btnRefreshHistory) btnRefreshHistory.addEventListener("click", loadHistory);
 
   // Initialize
   loadHistory();
