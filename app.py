@@ -56,10 +56,9 @@ class DownloadRequest(BaseModel):
 COOKIES_FILE = BASE_DIR / "cookies.txt"
 
 def load_cookies() -> bool:
-    # 1. Check environment variables
-    for env_key in ("YOUTUBE_COOKIES", "COOKIES", "YOUTUBE_COOKIE", "COOKIE"):
-        val = os.environ.get(env_key)
-        if val and val.strip():
+    # 1. Check environment variables (supports YOUTUBE_COOKIES, YUOTUBE_COOKIES, or any key containing COOKIE)
+    for env_key, val in os.environ.items():
+        if "COOKIE" in env_key.upper() and val and val.strip():
             content = val.strip()
             if content.startswith("base64:"):
                 import base64
