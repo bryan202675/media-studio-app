@@ -7,7 +7,7 @@ import threading
 from typing import Dict, Any, Optional
 from pathlib import Path
 
-from fastapi import FastAPI, HTTPException, BackgroundTasks, APIRouter
+from fastapi import FastAPI, HTTPException, BackgroundTasks, APIRouter, Request
 from fastapi.staticfiles import StaticFiles
 from fastapi.responses import FileResponse, JSONResponse
 from fastapi.middleware.cors import CORSMiddleware
@@ -41,6 +41,12 @@ app.add_middleware(
     allow_methods=["*"],
     allow_headers=["*"],
 )
+
+@app.middleware("http")
+async def add_private_network_headers(request: Request, call_next):
+    response = await call_next(request)
+    response.headers["Access-Control-Allow-Private-Network"] = "true"
+    return response
 
 # In-memory job tracker
 jobs: Dict[str, Dict[str, Any]] = {}
@@ -540,7 +546,54 @@ def fetch_tiktok_data(url: str) -> dict:
     except Exception:
         pass
 
-    # 2. Fallback to native yt-dlp extractor
+    # 2. Try LoveTik API fallback
+    try:
+        body = urllib.parse.urlencode({"query": url}).encode("utf-8")
+        req = urllib.request.Request(
+            "https://lovetik.com/api/ajax/search",
+            data=body,
+            headers={
+                "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/122.0.0.0 Safari/537.36",
+                "Referer": "https://lovetik.com/"
+            }
+        )
+        with urllib.request.urlopen(req, timeout=8) as resp:
+            res = json.loads(resp.read().decode())
+            if res.get("status") == "ok" and res.get("links"):
+                links = res.get("links", [])
+                hd_url = None
+                sd_url = None
+                audio_url = None
+                for l in links:
+                    t = (l.get("t") or "").lower()
+                    a = l.get("a") or ""
+                    if "hd" in t:
+                        hd_url = a
+                    elif "mp4" in (l.get("s") or "").upper() and not sd_url:
+                        sd_url = a
+                    elif "mp3" in (l.get("s") or "").upper() or "audio" in t:
+                        audio_url = a
+                return {
+                    "id": res.get("vid") or "tiktok_video",
+                    "video_id": res.get("vid") or "tiktok_video",
+                    "title": res.get("desc") or "TikTok Video",
+                    "author": {
+                        "nickname": res.get("author") or "Creador",
+                        "unique_id": res.get("author") or "usuario",
+                        "avatar": ""
+                    },
+                    "cover": res.get("cover") or "",
+                    "duration": 0,
+                    "play": sd_url or hd_url or "",
+                    "hdplay": hd_url or sd_url or "",
+                    "music": audio_url,
+                    "hd_size": 0,
+                    "music_info": {"title": "Audio original"}
+                }
+    except Exception:
+        pass
+
+    # 3. Fallback to native yt-dlp extractor
     return fetch_tiktok_via_ytdlp(url)
 
 @router.post("/tiktok/info")
