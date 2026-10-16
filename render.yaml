@@ -1,0 +1,10 @@
+services:
+  - type: web
+    name: media-studio-backend
+    runtime: docker
+    plan: free
+    region: oregon
+    envVars:
+      - key: PORT
+        value: 10000
+    healthCheckPath: /api/health

@@ -474,7 +474,10 @@ def get_tiktok_info(req: InfoRequest):
             "views_str": format_views(data.get("play_count")),
             "has_hd": bool(hdplay_url),
             "music_title": data.get("music_info", {}).get("title", "Audio original"),
-            "size_mb": size_display
+            "size_mb": size_display,
+            "direct_video_hd": hdplay_url or play_url,
+            "direct_video_sd": play_url,
+            "direct_audio": music_url
         }
     except Exception as e:
         raise HTTPException(status_code=400, detail=f"Error al analizar el enlace de TikTok: {str(e)}")

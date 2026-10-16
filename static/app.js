@@ -3,6 +3,108 @@ document.addEventListener("DOMContentLoaded", () => {
     window.lucide.createIcons();
   }
 
+  // --- Backend Configuration & Health ---
+  function getCustomBackend() {
+    return (localStorage.getItem("media_studio_backend_url") || "").trim();
+  }
+
+  function getApiUrl(path) {
+    const base = getCustomBackend();
+    if (!base) return path;
+    return `${base.replace(/\/+$/, "")}${path}`;
+  }
+
+  const btnBackendStatus = document.getElementById("btnBackendStatus");
+  const backendStatusDot = document.getElementById("backendStatusDot");
+  const backendStatusLabel = document.getElementById("backendStatusLabel");
+  const backendModal = document.getElementById("backendModal");
+  const btnCloseBackendModal = document.getElementById("btnCloseBackendModal");
+  const modalBackendStatus = document.getElementById("modalBackendStatus");
+  const modalFfmpegStatus = document.getElementById("modalFfmpegStatus");
+  const modalSizeLimit = document.getElementById("modalSizeLimit");
+  const inputBackendUrl = document.getElementById("inputBackendUrl");
+  const btnSaveBackendUrl = document.getElementById("btnSaveBackendUrl");
+  const btnResetBackendUrl = document.getElementById("btnResetBackendUrl");
+
+  let currentBackendHealth = null;
+
+  async function checkBackendHealth() {
+    try {
+      const res = await fetch(getApiUrl("/api/health"), { cache: "no-store" });
+      if (res.ok) {
+        const data = await res.json();
+        currentBackendHealth = data;
+        const isCustom = Boolean(getCustomBackend());
+
+        if (data.ffmpeg) {
+          backendStatusDot.className = "w-1.5 h-1.5 rounded-full bg-emerald-500";
+          backendStatusLabel.textContent = isCustom ? "Dedicado (FFmpeg)" : "Servidor Completo";
+          modalBackendStatus.textContent = isCustom ? "Servidor Dedicado Conectado" : "Servidor Completo Local/Docker";
+          modalBackendStatus.className = "font-medium text-emerald-400";
+          modalFfmpegStatus.textContent = "Activo (H.264, AAC, MP3 320k)";
+          modalFfmpegStatus.className = "font-medium text-emerald-400";
+          modalSizeLimit.textContent = "Sin límites (1080p, 4K, ilimitado)";
+          modalSizeLimit.className = "font-medium text-emerald-400";
+        } else {
+          backendStatusDot.className = "w-1.5 h-1.5 rounded-full bg-amber-400";
+          backendStatusLabel.textContent = "Vercel Serverless";
+          modalBackendStatus.textContent = "Vercel Cloud (Serverless)";
+          modalBackendStatus.className = "font-medium text-amber-400";
+          modalFfmpegStatus.textContent = "No disponible en Serverless";
+          modalFfmpegStatus.className = "font-medium text-[#86868b]";
+          modalSizeLimit.textContent = "Máx 4.5 MB por descarga";
+          modalSizeLimit.className = "font-medium text-amber-400";
+        }
+      } else {
+        throw new Error("HTTP " + res.status);
+      }
+    } catch (e) {
+      backendStatusDot.className = "w-1.5 h-1.5 rounded-full bg-rose-500";
+      backendStatusLabel.textContent = "Desconectado";
+      modalBackendStatus.textContent = "No responde";
+      modalBackendStatus.className = "font-medium text-rose-400";
+      modalFfmpegStatus.textContent = "--";
+      modalSizeLimit.textContent = "--";
+    }
+  }
+
+  if (btnBackendStatus) {
+    btnBackendStatus.addEventListener("click", () => {
+      inputBackendUrl.value = getCustomBackend();
+      backendModal.classList.remove("hidden");
+    });
+  }
+
+  if (btnCloseBackendModal) {
+    btnCloseBackendModal.addEventListener("click", () => {
+      backendModal.classList.add("hidden");
+    });
+  }
+
+  if (btnSaveBackendUrl) {
+    btnSaveBackendUrl.addEventListener("click", async () => {
+      const val = (inputBackendUrl.value || "").trim().replace(/\/+$/, "");
+      if (val) {
+        localStorage.setItem("media_studio_backend_url", val);
+      } else {
+        localStorage.removeItem("media_studio_backend_url");
+      }
+      await checkBackendHealth();
+      backendModal.classList.add("hidden");
+      loadHistory();
+    });
+  }
+
+  if (btnResetBackendUrl) {
+    btnResetBackendUrl.addEventListener("click", async () => {
+      localStorage.removeItem("media_studio_backend_url");
+      inputBackendUrl.value = "";
+      await checkBackendHealth();
+      backendModal.classList.add("hidden");
+      loadHistory();
+    });
+  }
+
   // --- Platform Navigation (YouTube vs TikTok) ---
   const tabPlatformYoutube = document.getElementById("tabPlatformYoutube");
   const tabPlatformTiktok = document.getElementById("tabPlatformTiktok");
@@ -61,55 +163,39 @@ document.addEventListener("DOMContentLoaded", () => {
   const completedFileSize = document.getElementById("completedFileSize");
   const btnSaveFile = document.getElementById("btnSaveFile");
 
-  const btnRefreshHistory = document.getElementById("btnRefreshHistory");
-  const downloadsHistoryList = document.getElementById("downloadsHistoryList");
-
   let pollInterval = null;
 
-  // --- YouTube Section ---
+  // --- YouTube Section Logic ---
   const urlForm = document.getElementById("urlForm");
-  const videoUrlInput = document.getElementById("videoUrl");
-  const btnPaste = document.getElementById("btnPaste");
+  const youtubeUrlInput = document.getElementById("youtubeUrlInput");
   const btnAnalyze = document.getElementById("btnAnalyze");
   const videoPreviewSection = document.getElementById("videoPreviewSection");
-  const metaThumbnail = document.getElementById("metaThumbnail");
-  const metaTitle = document.getElementById("metaTitle");
-  const metaChannel = document.getElementById("metaChannel");
-  const metaViews = document.getElementById("metaViews");
-  const metaDuration = document.getElementById("metaDuration");
-  const maxResBadge = document.getElementById("maxResBadge");
-  const resChips = document.getElementById("resChips");
 
-  const tabVideo = document.getElementById("tabVideo");
-  const tabAudio = document.getElementById("tabAudio");
+  const ytThumbnail = document.getElementById("ytThumbnail");
+  const ytDuration = document.getElementById("ytDuration");
+  const ytChannel = document.getElementById("ytChannel");
+  const ytViews = document.getElementById("ytViews");
+  const ytUploadDate = document.getElementById("ytUploadDate");
+  const ytTitle = document.getElementById("ytTitle");
+
+  const tabTypeVideo = document.getElementById("tabTypeVideo");
+  const tabTypeAudio = document.getElementById("tabTypeAudio");
   const videoFormatsPanel = document.getElementById("videoFormatsPanel");
   const audioFormatsPanel = document.getElementById("audioFormatsPanel");
   const formatCards = document.querySelectorAll(".format-option-card");
   const btnStartDownload = document.getElementById("btnStartDownload");
 
-  btnPaste.addEventListener("click", async () => {
-    try {
-      const text = await navigator.clipboard.readText();
-      if (text) {
-        videoUrlInput.value = text.trim();
-        analyzeYoutube(text.trim());
-      }
-    } catch {
-      videoUrlInput.focus();
-    }
-  });
-
   document.querySelectorAll(".sample-link").forEach((btn) => {
     btn.addEventListener("click", () => {
       const u = btn.getAttribute("data-url");
-      videoUrlInput.value = u;
+      youtubeUrlInput.value = u;
       analyzeYoutube(u);
     });
   });
 
   urlForm.addEventListener("submit", (e) => {
     e.preventDefault();
-    const u = videoUrlInput.value.trim();
+    const u = youtubeUrlInput.value.trim();
     if (!u) {
       showAlert("Ingresa un enlace de YouTube.");
       return;
@@ -126,7 +212,7 @@ document.addEventListener("DOMContentLoaded", () => {
     btnAnalyze.innerHTML = `<span>Analizando...</span>`;
 
     try {
-      const res = await fetch("/api/info", {
+      const res = await fetch(getApiUrl("/api/info"), {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ url }),
@@ -143,42 +229,37 @@ document.addEventListener("DOMContentLoaded", () => {
     }
   }
 
-  function renderYoutube(info) {
-    metaTitle.textContent = info.title;
-    metaChannel.textContent = info.channel;
-    metaViews.textContent = info.views_str;
-    metaDuration.textContent = info.duration_str;
-    metaThumbnail.src = info.thumbnail || "";
-    maxResBadge.textContent = info.max_resolution || "HD";
-
-    resChips.innerHTML = "";
-    if (info.available_resolutions && info.available_resolutions.length > 0) {
-      info.available_resolutions.forEach((h) => {
-        const chip = document.createElement("span");
-        chip.className = "px-2 py-0.5 rounded text-[10px] font-mono bg-[#121214] border border-white/[0.08] text-neutral-300";
-        chip.textContent = `${h}p`;
-        if (h >= 1080) chip.className += " text-white font-medium";
-        resChips.appendChild(chip);
-      });
-    }
+  function renderYoutube(data) {
+    ytThumbnail.src = data.thumbnail || "";
+    ytDuration.textContent = data.duration_str || "00:00";
+    ytChannel.textContent = data.uploader || "YouTube";
+    ytViews.textContent = data.views_str || "";
+    ytUploadDate.textContent = data.upload_date || "";
+    ytTitle.textContent = data.title || "Video";
 
     videoPreviewSection.classList.remove("hidden");
     if (window.lucide) window.lucide.createIcons();
     videoPreviewSection.scrollIntoView({ behavior: "smooth", block: "nearest" });
   }
 
-  tabVideo.addEventListener("click", () => {
-    tabVideo.className = "px-4 py-1 text-xs font-medium rounded-md bg-[#2c2c2e] text-white transition";
-    tabAudio.className = "px-4 py-1 text-xs font-medium rounded-md text-[#86868b] hover:text-white transition";
+  tabTypeVideo.addEventListener("click", () => {
+    tabTypeVideo.className = "px-4 py-1 rounded-full font-medium bg-[#2c2c2e] text-white shadow-sm transition-all";
+    tabTypeAudio.className = "px-4 py-1 rounded-full font-medium text-[#86868b] hover:text-white transition-all";
     videoFormatsPanel.classList.remove("hidden");
     audioFormatsPanel.classList.add("hidden");
+
+    const r = videoFormatsPanel.querySelector('input[type="radio"]');
+    if (r) r.click();
   });
 
-  tabAudio.addEventListener("click", () => {
-    tabAudio.className = "px-4 py-1 text-xs font-medium rounded-md bg-[#2c2c2e] text-white transition";
-    tabVideo.className = "px-4 py-1 text-xs font-medium rounded-md text-[#86868b] hover:text-white transition";
+  tabTypeAudio.addEventListener("click", () => {
+    tabTypeAudio.className = "px-4 py-1 rounded-full font-medium bg-[#2c2c2e] text-white shadow-sm transition-all";
+    tabTypeVideo.className = "px-4 py-1 rounded-full font-medium text-[#86868b] hover:text-white transition-all";
     audioFormatsPanel.classList.remove("hidden");
     videoFormatsPanel.classList.add("hidden");
+
+    const r = audioFormatsPanel.querySelector('input[type="radio"]');
+    if (r) r.click();
   });
 
   formatCards.forEach((card) => {
@@ -198,21 +279,26 @@ document.addEventListener("DOMContentLoaded", () => {
 
   btnStartDownload.addEventListener("click", () => {
     const radio = document.querySelector('input[name="format_choice"]:checked');
-    const formatType = radio ? radio.value : "mp4-1080";
-    const url = videoUrlInput.value.trim();
+    const formatType = radio ? radio.value : "mp4-best";
+    const url = youtubeUrlInput.value.trim();
     if (!url) {
-      showAlert("Enlace no válido.");
+      showAlert("Ingresa una URL válida.");
       return;
     }
-    startDownload("/api/download", { url, format_type: formatType }, `YouTube • ${formatType.toUpperCase()}`);
+
+    startDownloadJob(
+      getApiUrl("/api/download"),
+      { url, format_type: formatType },
+      formatType.toUpperCase()
+    );
   });
 
-  // --- TikTok Section ---
+  // --- TikTok Section Logic ---
   const tiktokUrlForm = document.getElementById("tiktokUrlForm");
-  const tiktokUrlInput = document.getElementById("tiktokUrl");
-  const btnTiktokPaste = document.getElementById("btnTiktokPaste");
+  const tiktokUrlInput = document.getElementById("tiktokUrlInput");
   const btnAnalyzeTiktok = document.getElementById("btnAnalyzeTiktok");
   const tiktokPreviewSection = document.getElementById("tiktokPreviewSection");
+
   const tiktokThumbnail = document.getElementById("tiktokThumbnail");
   const tiktokDuration = document.getElementById("tiktokDuration");
   const tiktokAvatar = document.getElementById("tiktokAvatar");
@@ -223,20 +309,11 @@ document.addEventListener("DOMContentLoaded", () => {
   const tiktokLikes = document.getElementById("tiktokLikes");
   const tiktokComments = document.getElementById("tiktokComments");
   const tiktokViews = document.getElementById("tiktokViews");
+
   const tiktokFormatCards = document.querySelectorAll(".tiktok-format-card");
   const btnStartTiktokDownload = document.getElementById("btnStartTiktokDownload");
 
-  btnTiktokPaste.addEventListener("click", async () => {
-    try {
-      const text = await navigator.clipboard.readText();
-      if (text) {
-        tiktokUrlInput.value = text.trim();
-        analyzeTiktok(text.trim());
-      }
-    } catch {
-      tiktokUrlInput.focus();
-    }
-  });
+  let currentTiktokData = null;
 
   document.querySelectorAll(".sample-tiktok-link").forEach((btn) => {
     btn.addEventListener("click", () => {
@@ -265,7 +342,7 @@ document.addEventListener("DOMContentLoaded", () => {
     btnAnalyzeTiktok.innerHTML = `<span>Analizando...</span>`;
 
     try {
-      const res = await fetch("/api/tiktok/info", {
+      const res = await fetch(getApiUrl("/api/tiktok/info"), {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ url }),
@@ -273,6 +350,7 @@ document.addEventListener("DOMContentLoaded", () => {
       const data = await res.json();
       if (!res.ok) throw new Error(data.detail || "Error al analizar TikTok.");
 
+      currentTiktokData = data;
       renderTiktok(data);
     } catch (err) {
       showAlert(err.message);
@@ -319,19 +397,42 @@ document.addEventListener("DOMContentLoaded", () => {
     const formatType = radio ? radio.value : "tiktok-mp4-hd";
     const url = tiktokUrlInput.value.trim();
     if (!url) {
-      showAlert("Enlace no válido.");
+      showAlert("Ingresa una URL válida de TikTok.");
       return;
     }
-    startDownload("/api/tiktok/download", { url, format_type: formatType }, "TikTok • Sin Marca HD");
+
+    // Direct CDN download optimization for TikTok HD without watermark:
+    // If on serverless without FFmpeg, bypass server limits directly!
+    if (formatType === "tiktok-mp4-hd" && currentTiktokData?.direct_video_hd && (!currentBackendHealth || !currentBackendHealth.ffmpeg)) {
+      downloadStatusSection.classList.remove("hidden");
+      downloadActiveState.classList.add("hidden");
+      downloadCompletedState.classList.remove("hidden");
+
+      const cleanTitle = (currentTiktokData.title || "tiktok").replace(/[^a-zA-Z0-9_\-\s]/g, "").trim().substring(0, 45) + ".mp4";
+      completedFileName.textContent = cleanTitle;
+      completedFileSize.textContent = currentTiktokData.size_mb || "Máxima Calidad HD";
+      btnSaveFile.href = currentTiktokData.direct_video_hd;
+      btnSaveFile.setAttribute("download", cleanTitle);
+      btnSaveFile.setAttribute("target", "_blank");
+      downloadStatusSection.scrollIntoView({ behavior: "smooth", block: "nearest" });
+      return;
+    }
+
+    startDownloadJob(
+      getApiUrl("/api/tiktok/download"),
+      { url, format_type: formatType },
+      formatType === "tiktok-mp4-hd" ? "TIKTOK HD ORIGINAL" : "TIKTOK MP3 320K"
+    );
   });
 
-  // --- Unified Download Execution ---
-  async function startDownload(endpoint, payload, label) {
+  // --- Core Downloader Engine ---
+  async function startDownloadJob(endpoint, payload, label) {
+    hideAlert();
     downloadStatusSection.classList.remove("hidden");
     downloadActiveState.classList.remove("hidden");
     downloadCompletedState.classList.add("hidden");
 
-    activeStatusTitle.textContent = "Conectando...";
+    activeStatusTitle.textContent = "Conectando con el servidor...";
     activeFormatLabel.textContent = label;
     progressPercent.textContent = "0%";
     progressBar.style.width = "0%";
@@ -361,7 +462,7 @@ document.addEventListener("DOMContentLoaded", () => {
 
     pollInterval = setInterval(async () => {
       try {
-        const res = await fetch(`/api/progress/${jobId}`);
+        const res = await fetch(getApiUrl(`/api/progress/${jobId}`));
         if (!res.ok) {
           clearInterval(pollInterval);
           showAlert("Error al monitorear la descarga.");
@@ -371,7 +472,10 @@ document.addEventListener("DOMContentLoaded", () => {
         const job = await res.json();
         const status = job.status;
 
-        if (status === "downloading") {
+        if (status === "queued") {
+          activeStatusTitle.textContent = "En cola de espera...";
+          statSpeed.textContent = "Esperando slot...";
+        } else if (status === "downloading") {
           activeStatusTitle.textContent = "Descargando archivo...";
           const pct = job.progress || 0;
           progressPercent.textContent = `${pct}%`;
@@ -392,7 +496,7 @@ document.addEventListener("DOMContentLoaded", () => {
 
           completedFileName.textContent = job.filename || "Archivo descargado";
           completedFileSize.textContent = job.size_mb ? `Tamaño: ${job.size_mb}` : "Listo";
-          btnSaveFile.href = `/api/file/${jobId}`;
+          btnSaveFile.href = getApiUrl(`/api/file/${jobId}`);
           btnSaveFile.setAttribute("download", job.filename || "descarga");
 
           if (window.lucide) window.lucide.createIcons();
@@ -408,9 +512,13 @@ document.addEventListener("DOMContentLoaded", () => {
     }, 500);
   }
 
+  // --- Downloads History ---
+  const downloadsHistoryList = document.getElementById("downloadsHistoryList");
+  const btnRefreshHistory = document.getElementById("btnRefreshHistory");
+
   async function loadHistory() {
     try {
-      const res = await fetch("/api/downloads");
+      const res = await fetch(getApiUrl("/api/downloads"));
       const data = await res.json();
       const files = data.downloads || [];
 
@@ -441,7 +549,7 @@ document.addEventListener("DOMContentLoaded", () => {
               <div class="text-[11px] text-[#86868b]">${tag} • ${file.size_mb}</div>
             </div>
           </div>
-          <a href="/api/file-by-name/${encodeURIComponent(file.name)}" download="${file.name}" class="text-xs text-neutral-300 hover:text-white transition flex-shrink-0 px-2.5 py-1 rounded-md bg-[#2c2c2e] hover:bg-[#3a3a3c] flex items-center gap-1.5">
+          <a href="${getApiUrl(`/api/file-by-name/${encodeURIComponent(file.name)}`)}" download="${file.name}" class="text-xs text-neutral-300 hover:text-white transition flex-shrink-0 px-2.5 py-1 rounded-md bg-[#2c2c2e] hover:bg-[#3a3a3c] flex items-center gap-1.5">
             <i data-lucide="download" class="w-3 h-3"></i>
             <span>Descargar</span>
           </a>
@@ -457,5 +565,8 @@ document.addEventListener("DOMContentLoaded", () => {
   }
 
   btnRefreshHistory.addEventListener("click", loadHistory);
+
+  // Initialize
+  checkBackendHealth();
   loadHistory();
 });

@@ -45,6 +45,17 @@
           Media Studio
         </span>
       </div>
+      <div class="flex items-center gap-2">
+        <button 
+          id="btnBackendStatus" 
+          type="button" 
+          class="inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-[11px] font-medium bg-[#1c1c1e] text-[#86868b] hover:text-white border border-white/[0.08] hover:border-white/20 transition-all cursor-pointer"
+          title="Configuración de Backend / Servidor"
+        >
+          <span id="backendStatusDot" class="w-1.5 h-1.5 rounded-full bg-emerald-500"></span>
+          <span id="backendStatusLabel">Detectando servidor...</span>
+        </button>
+      </div>
     </div>
   </nav>
 
@@ -526,6 +537,83 @@
       <div>Media Studio</div>
     </footer>
 
+  </div>
+
+  <!-- Backend Configuration Modal -->
+  <div id="backendModal" class="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/70 backdrop-blur-md hidden animate-fade-in">
+    <div class="bg-[#1c1c1e] border border-white/10 rounded-2xl p-6 max-w-md w-full shadow-2xl space-y-4">
+      <div class="flex items-center justify-between pb-2 border-b border-white/[0.06]">
+        <div class="flex items-center gap-2">
+          <span class="w-2 h-2 rounded-full bg-emerald-500"></span>
+          <h3 class="text-sm font-semibold text-white">Servidor & Motor de Descargas</h3>
+        </div>
+        <button id="btnCloseBackendModal" type="button" class="text-[#86868b] hover:text-white p-1 rounded-lg">
+          <svg class="w-4 h-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+            <line x1="18" y1="6" x2="6" y2="18"></line>
+            <line x1="6" y1="6" x2="18" y2="18"></line>
+          </svg>
+        </button>
+      </div>
+
+      <div class="space-y-3 text-xs">
+        <div class="p-3 rounded-xl bg-[#121214] border border-white/[0.06] space-y-1.5">
+          <div class="flex items-center justify-between">
+            <span class="text-[#86868b]">Estado del servidor:</span>
+            <span id="modalBackendStatus" class="font-medium text-white">Detectando...</span>
+          </div>
+          <div class="flex items-center justify-between">
+            <span class="text-[#86868b]">Soporte FFmpeg:</span>
+            <span id="modalFfmpegStatus" class="font-medium text-white">--</span>
+          </div>
+          <div class="flex items-center justify-between">
+            <span class="text-[#86868b]">Límite de tamaño:</span>
+            <span id="modalSizeLimit" class="font-medium text-white">--</span>
+          </div>
+        </div>
+
+        <p class="text-[#86868b] leading-relaxed">
+          Para descargar videos de YouTube en 1080p, 4K y conversiones de audio 320 kbps sin restricciones de tamaño (sin el límite de 4.5 MB de Vercel), puedes conectar tu servidor dedicado en Render, Railway o localmente.
+        </p>
+
+        <div class="space-y-1.5 pt-1">
+          <label class="block font-medium text-white/90">URL de Backend Dedicado (opcional):</label>
+          <input 
+            id="inputBackendUrl" 
+            type="url" 
+            placeholder="https://media-studio-api.onrender.com o http://localhost:5050" 
+            class="w-full bg-[#121214] border border-white/10 rounded-xl px-3 py-2 text-xs text-white placeholder-[#86868b] focus:outline-none focus:border-white/30"
+          >
+        </div>
+      </div>
+
+      <div class="flex items-center gap-2 pt-2">
+        <button 
+          id="btnSaveBackendUrl" 
+          type="button" 
+          class="flex-1 py-2 px-3 rounded-xl bg-white text-black font-semibold text-xs hover:bg-neutral-200 transition-all"
+        >
+          Guardar y Probar
+        </button>
+        <button 
+          id="btnResetBackendUrl" 
+          type="button" 
+          class="py-2 px-3 rounded-xl bg-[#2c2c2e] text-[#86868b] hover:text-white text-xs transition-all"
+        >
+          Por Defecto
+        </button>
+      </div>
+
+      <div class="pt-2 border-t border-white/[0.06] text-center">
+        <a 
+          href="https://render.com/deploy?repo=https://github.com/bryan202675/media-studio-app" 
+          target="_blank" 
+          rel="noopener noreferrer"
+          class="text-[11px] text-[#2997ff] hover:underline inline-flex items-center gap-1"
+        >
+          Desplegar servidor gratis en Render (1-Click) &rarr;
+        </a>
+      </div>
+    </div>
   </div>
 
   <script src="/app.js"></script>
