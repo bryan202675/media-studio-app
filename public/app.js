@@ -3,106 +3,11 @@ document.addEventListener("DOMContentLoaded", () => {
     window.lucide.createIcons();
   }
 
-  // --- Backend Configuration & Health ---
-  function getCustomBackend() {
-    return (localStorage.getItem("media_studio_backend_url") || "").trim();
-  }
+  // Backend dedicado en Render (con FFmpeg nativo, sin restricciones de tamaño)
+  const API_BASE = "https://media-studio-app.onrender.com";
 
   function getApiUrl(path) {
-    const base = getCustomBackend();
-    if (!base) return path;
-    return `${base.replace(/\/+$/, "")}${path}`;
-  }
-
-  const btnBackendStatus = document.getElementById("btnBackendStatus");
-  const backendStatusDot = document.getElementById("backendStatusDot");
-  const backendStatusLabel = document.getElementById("backendStatusLabel");
-  const backendModal = document.getElementById("backendModal");
-  const btnCloseBackendModal = document.getElementById("btnCloseBackendModal");
-  const modalBackendStatus = document.getElementById("modalBackendStatus");
-  const modalFfmpegStatus = document.getElementById("modalFfmpegStatus");
-  const modalSizeLimit = document.getElementById("modalSizeLimit");
-  const inputBackendUrl = document.getElementById("inputBackendUrl");
-  const btnSaveBackendUrl = document.getElementById("btnSaveBackendUrl");
-  const btnResetBackendUrl = document.getElementById("btnResetBackendUrl");
-
-  let currentBackendHealth = null;
-
-  async function checkBackendHealth() {
-    try {
-      const res = await fetch(getApiUrl("/api/health"), { cache: "no-store" });
-      if (res.ok) {
-        const data = await res.json();
-        currentBackendHealth = data;
-        const isCustom = Boolean(getCustomBackend());
-
-        if (data.ffmpeg) {
-          backendStatusDot.className = "w-1.5 h-1.5 rounded-full bg-emerald-500";
-          backendStatusLabel.textContent = isCustom ? "Dedicado (FFmpeg)" : "Servidor Completo";
-          modalBackendStatus.textContent = isCustom ? "Servidor Dedicado Conectado" : "Servidor Completo Local/Docker";
-          modalBackendStatus.className = "font-medium text-emerald-400";
-          modalFfmpegStatus.textContent = "Activo (H.264, AAC, MP3 320k)";
-          modalFfmpegStatus.className = "font-medium text-emerald-400";
-          modalSizeLimit.textContent = "Sin límites (1080p, 4K, ilimitado)";
-          modalSizeLimit.className = "font-medium text-emerald-400";
-        } else {
-          backendStatusDot.className = "w-1.5 h-1.5 rounded-full bg-amber-400";
-          backendStatusLabel.textContent = "Vercel Serverless";
-          modalBackendStatus.textContent = "Vercel Cloud (Serverless)";
-          modalBackendStatus.className = "font-medium text-amber-400";
-          modalFfmpegStatus.textContent = "No disponible en Serverless";
-          modalFfmpegStatus.className = "font-medium text-[#86868b]";
-          modalSizeLimit.textContent = "Máx 4.5 MB por descarga";
-          modalSizeLimit.className = "font-medium text-amber-400";
-        }
-      } else {
-        throw new Error("HTTP " + res.status);
-      }
-    } catch (e) {
-      backendStatusDot.className = "w-1.5 h-1.5 rounded-full bg-rose-500";
-      backendStatusLabel.textContent = "Desconectado";
-      modalBackendStatus.textContent = "No responde";
-      modalBackendStatus.className = "font-medium text-rose-400";
-      modalFfmpegStatus.textContent = "--";
-      modalSizeLimit.textContent = "--";
-    }
-  }
-
-  if (btnBackendStatus) {
-    btnBackendStatus.addEventListener("click", () => {
-      inputBackendUrl.value = getCustomBackend();
-      backendModal.classList.remove("hidden");
-    });
-  }
-
-  if (btnCloseBackendModal) {
-    btnCloseBackendModal.addEventListener("click", () => {
-      backendModal.classList.add("hidden");
-    });
-  }
-
-  if (btnSaveBackendUrl) {
-    btnSaveBackendUrl.addEventListener("click", async () => {
-      const val = (inputBackendUrl.value || "").trim().replace(/\/+$/, "");
-      if (val) {
-        localStorage.setItem("media_studio_backend_url", val);
-      } else {
-        localStorage.removeItem("media_studio_backend_url");
-      }
-      await checkBackendHealth();
-      backendModal.classList.add("hidden");
-      loadHistory();
-    });
-  }
-
-  if (btnResetBackendUrl) {
-    btnResetBackendUrl.addEventListener("click", async () => {
-      localStorage.removeItem("media_studio_backend_url");
-      inputBackendUrl.value = "";
-      await checkBackendHealth();
-      backendModal.classList.add("hidden");
-      loadHistory();
-    });
+    return `${API_BASE}${path}`;
   }
 
   // --- Platform Navigation (YouTube vs TikTok) ---
@@ -567,6 +472,5 @@ document.addEventListener("DOMContentLoaded", () => {
   btnRefreshHistory.addEventListener("click", loadHistory);
 
   // Initialize
-  checkBackendHealth();
   loadHistory();
 });
