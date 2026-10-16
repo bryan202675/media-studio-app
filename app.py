@@ -487,19 +487,61 @@ def start_download(req: DownloadRequest, background_tasks: BackgroundTasks):
 
 # --- TIKTOK WITHOUT WATERMARK LOGIC ---
 
-def fetch_tiktok_data(url: str) -> dict:
-    api_url = f"https://www.tikwm.com/api/?url={urllib.parse.quote(url)}&hd=1"
-    req = urllib.request.Request(
-        api_url,
-        headers={
-            "User-Agent": "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36"
+def fetch_tiktok_via_ytdlp(url: str) -> dict:
+    opts = {
+        "quiet": True,
+        "no_warnings": True,
+        "extract_flat": False,
+    }
+    with yt_dlp.YoutubeDL(opts) as ydl:
+        info = ydl.extract_info(url, download=False)
+        video_url = info.get("url")
+        formats = info.get("formats", [])
+        if not video_url and formats:
+            video_url = formats[-1].get("url")
+
+        return {
+            "id": info.get("id"),
+            "video_id": info.get("id"),
+            "title": info.get("title") or "TikTok Video",
+            "author": {
+                "nickname": info.get("uploader") or "Creador",
+                "unique_id": info.get("uploader_id") or info.get("uploader") or "usuario",
+                "avatar": ""
+            },
+            "cover": info.get("thumbnail") or "",
+            "duration": info.get("duration", 0),
+            "digg_count": info.get("like_count"),
+            "comment_count": info.get("comment_count"),
+            "share_count": info.get("repost_count"),
+            "play_count": info.get("view_count"),
+            "play": video_url or "",
+            "hdplay": video_url or "",
+            "music": None,
+            "hd_size": info.get("filesize") or 0,
+            "music_info": {"title": info.get("track") or "Audio original"}
         }
-    )
-    with urllib.request.urlopen(req, timeout=12) as resp:
-        res = json.loads(resp.read().decode())
-        if res.get("code") != 0 or not res.get("data"):
-            raise Exception(res.get("msg") or "No se pudo obtener el video de TikTok sin marca de agua.")
-        return res["data"]
+
+def fetch_tiktok_data(url: str) -> dict:
+    # 1. Try tikwm API
+    try:
+        api_url = f"https://www.tikwm.com/api/?url={urllib.parse.quote(url)}&hd=1"
+        req = urllib.request.Request(
+            api_url,
+            headers={
+                "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/122.0.0.0 Safari/537.36",
+                "Referer": "https://www.tikwm.com/"
+            }
+        )
+        with urllib.request.urlopen(req, timeout=8) as resp:
+            res = json.loads(resp.read().decode())
+            if res.get("code") == 0 and res.get("data"):
+                return res["data"]
+    except Exception:
+        pass
+
+    # 2. Fallback to native yt-dlp extractor
+    return fetch_tiktok_via_ytdlp(url)
 
 @router.post("/tiktok/info")
 def get_tiktok_info(req: InfoRequest):
@@ -590,61 +632,90 @@ def run_tiktok_download_job(job_id: str, url: str, format_type: str):
 
         update_job(status="downloading", progress=5.0, speed="Descargando en máxima calidad...", eta="--")
 
-        req = urllib.request.Request(
-            target_stream,
-            headers={
-                "User-Agent": "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36",
-                "Referer": "https://www.tiktok.com/"
+        download_ok = False
+        if target_stream and target_stream.startswith("http"):
+            try:
+                req = urllib.request.Request(
+                    target_stream,
+                    headers={
+                        "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/122.0.0.0 Safari/537.36",
+                        "Referer": "https://www.tiktok.com/"
+                    }
+                )
+                start_time = time.time()
+                downloaded = 0
+                total_size = 0
+                with urllib.request.urlopen(req, timeout=25) as resp, open(temp_file, "wb") as f:
+                    total_header = resp.headers.get("Content-Length")
+                    if total_header and total_header.isdigit():
+                        total_size = int(total_header)
+
+                    chunk_size = 64 * 1024
+                    last_update = time.time()
+                    while True:
+                        chunk = resp.read(chunk_size)
+                        if not chunk:
+                            break
+                        f.write(chunk)
+                        downloaded += len(chunk)
+
+                        now = time.time()
+                        if now - last_update >= 0.35:
+                            elapsed = now - start_time
+                            speed_bps = downloaded / elapsed if elapsed > 0 else 0
+                            speed_str = f"{speed_bps / (1024 * 1024):.1f} MB/s" if speed_bps >= 1024 * 1024 else f"{speed_bps / 1024:.0f} KB/s"
+                            pct = 0.0
+                            eta_str = "--"
+                            if total_size > 0:
+                                pct = min(round((downloaded / total_size) * 100, 1), 98.0)
+                                remaining = total_size - downloaded
+                                if speed_bps > 0:
+                                    eta_secs = int(remaining / speed_bps)
+                                    eta_str = f"{eta_secs}s"
+                            else:
+                                pct = min(round((downloaded / (5 * 1024 * 1024)) * 80, 1), 95.0)
+
+                            update_job(
+                                status="downloading",
+                                progress=pct,
+                                speed=speed_str,
+                                eta=eta_str,
+                                downloaded_bytes=downloaded,
+                                total_bytes=total_size
+                            )
+                            last_update = now
+
+                if os.path.exists(temp_file) and os.path.getsize(temp_file) > 10000:
+                    download_ok = True
+            except Exception:
+                download_ok = False
+
+        if not download_ok:
+            # Fallback to yt-dlp native downloader
+            update_job(status="downloading", progress=25.0, speed="Descargando vía motor nativo...", eta="--")
+            out_template = str(DOWNLOADS_DIR / f"{base_name}.%(ext)s")
+            ydl_opts = {
+                "quiet": True,
+                "no_warnings": True,
+                "outtmpl": out_template,
+                "format": "bestaudio/best" if is_audio else "bestvideo+bestaudio/best",
             }
-        )
+            if is_audio:
+                ydl_opts["postprocessors"] = [{
+                    "key": "FFmpegExtractAudio",
+                    "preferredcodec": "mp3",
+                    "preferredquality": "320",
+                }]
+            with yt_dlp.YoutubeDL(ydl_opts) as ydl:
+                ydl.download([url])
 
-        start_time = time.time()
-        downloaded = 0
-        total_size = 0
+            candidates = list(DOWNLOADS_DIR.glob(f"*{job_id[:6]}*"))
+            if candidates:
+                final_file = candidates[0]
+            elif os.path.exists(temp_file):
+                final_file = temp_file
 
-        with urllib.request.urlopen(req, timeout=25) as resp, open(temp_file, "wb") as f:
-            total_header = resp.headers.get("Content-Length")
-            if total_header and total_header.isdigit():
-                total_size = int(total_header)
-
-            chunk_size = 64 * 1024
-            last_update = time.time()
-
-            while True:
-                chunk = resp.read(chunk_size)
-                if not chunk:
-                    break
-                f.write(chunk)
-                downloaded += len(chunk)
-
-                now = time.time()
-                if now - last_update >= 0.35:
-                    elapsed = now - start_time
-                    speed_bps = downloaded / elapsed if elapsed > 0 else 0
-                    speed_str = f"{speed_bps / (1024 * 1024):.1f} MB/s" if speed_bps >= 1024 * 1024 else f"{speed_bps / 1024:.0f} KB/s"
-
-                    pct = 0.0
-                    eta_str = "--"
-                    if total_size > 0:
-                        pct = min(round((downloaded / total_size) * 100, 1), 98.0)
-                        remaining = total_size - downloaded
-                        if speed_bps > 0:
-                            eta_secs = int(remaining / speed_bps)
-                            eta_str = f"{eta_secs}s"
-                    else:
-                        pct = min(round((downloaded / (5 * 1024 * 1024)) * 80, 1), 95.0)
-
-                    update_job(
-                        status="downloading",
-                        progress=pct,
-                        speed=speed_str,
-                        eta=eta_str,
-                        downloaded_bytes=downloaded,
-                        total_bytes=total_size
-                    )
-                    last_update = now
-
-        if is_audio:
+        if is_audio and not final_file.name.endswith(".mp3"):
             if shutil.which(FFMPEG_PATH) or os.path.exists(FFMPEG_PATH):
                 update_job(status="processing", progress=99.0, speed="Extrayendo MP3 con FFmpeg...", eta="Casi listo...")
                 cmd = [
@@ -659,8 +730,7 @@ def run_tiktok_download_job(job_id: str, url: str, format_type: str):
                     os.remove(temp_file)
             else:
                 final_file = temp_file
-        else:
-            final_file = temp_file
+        elif not is_audio and os.path.exists(final_file):
             if str(final_file).lower().endswith(".mp4"):
                 final_file = Path(ensure_apple_mp4_compatibility(str(final_file), update_job))
 
