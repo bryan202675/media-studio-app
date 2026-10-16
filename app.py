@@ -9,7 +9,7 @@ from pathlib import Path
 
 from fastapi import FastAPI, HTTPException, BackgroundTasks, APIRouter, Request
 from fastapi.staticfiles import StaticFiles
-from fastapi.responses import FileResponse, JSONResponse
+from fastapi.responses import FileResponse, JSONResponse, StreamingResponse
 from fastapi.middleware.cors import CORSMiddleware
 from pydantic import BaseModel
 import yt_dlp
@@ -644,6 +644,40 @@ def get_tiktok_info(req: InfoRequest):
         }
     except Exception as e:
         raise HTTPException(status_code=400, detail=f"Error al analizar el enlace de TikTok: {str(e)}")
+
+@router.get("/tiktok/stream")
+def stream_tiktok_video(url: str, title: Optional[str] = "video", is_audio: Optional[bool] = False):
+    try:
+        clean_title = re.sub(r'[\\/*?:"<>|]', "", title).strip() or "tiktok_media"
+        ext = "mp3" if is_audio else "mp4"
+        filename = f"{clean_title}.{ext}"
+
+        req = urllib.request.Request(
+            url,
+            headers={
+                "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/122.0.0.0 Safari/537.36",
+                "Referer": "https://www.tiktok.com/"
+            }
+        )
+        resp = urllib.request.urlopen(req, timeout=30)
+        content_type = resp.headers.get("Content-Type", "video/mp4" if not is_audio else "audio/mpeg")
+        content_length = resp.headers.get("Content-Length")
+
+        def iterfile():
+            while chunk := resp.read(64 * 1024):
+                yield chunk
+
+        headers = {
+            "Content-Disposition": f'attachment; filename="{filename}"',
+            "Access-Control-Allow-Origin": "*",
+            "Access-Control-Expose-Headers": "Content-Disposition, Content-Length"
+        }
+        if content_length:
+            headers["Content-Length"] = content_length
+
+        return StreamingResponse(iterfile(), media_type=content_type, headers=headers)
+    except Exception as e:
+        raise HTTPException(status_code=400, detail=f"Error al transmitir video: {str(e)}")
 
 def run_tiktok_download_job(job_id: str, url: str, format_type: str):
     def update_job(**kwargs):

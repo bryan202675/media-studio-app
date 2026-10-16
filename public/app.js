@@ -350,6 +350,107 @@ document.addEventListener("DOMContentLoaded", () => {
     });
   }
 
+  // --- In-Device Local Downloader (Zero 403, 100% device resources) ---
+  async function downloadTikTokLocally(streamUrl, fileName, isAudio) {
+    hideAlert();
+    downloadStatusSection.classList.remove("hidden");
+    downloadActiveState.classList.remove("hidden");
+    downloadCompletedState.classList.add("hidden");
+
+    activeStatusTitle.textContent = "Descargando en tu dispositivo...";
+    activeFormatLabel.textContent = isAudio ? "TIKTOK MP3 320K" : "TIKTOK HD ORIGINAL";
+    progressPercent.textContent = "0%";
+    progressBar.style.width = "0%";
+    statSpeed.textContent = "Usando recursos locales...";
+    statEta.textContent = "Conectando...";
+
+    downloadStatusSection.scrollIntoView({ behavior: "smooth", block: "nearest" });
+
+    function finishDownload(finalUrl, sizeMbStr) {
+      downloadActiveState.classList.add("hidden");
+      downloadCompletedState.classList.remove("hidden");
+      completedFileName.textContent = fileName;
+      completedFileSize.textContent = sizeMbStr || "Calidad Original";
+      btnSaveFile.href = finalUrl;
+      btnSaveFile.setAttribute("download", fileName);
+      btnSaveFile.removeAttribute("target");
+
+      // Auto trigger native save on device
+      const a = document.createElement("a");
+      a.href = finalUrl;
+      a.download = fileName;
+      document.body.appendChild(a);
+      a.click();
+      setTimeout(() => a.remove(), 100);
+      downloadStatusSection.scrollIntoView({ behavior: "smooth", block: "nearest" });
+    }
+
+    try {
+      // 1. Direct fetch with Blob (Client-Side processing in device memory)
+      const controller = new AbortController();
+      const tid = setTimeout(() => controller.abort(), 20000);
+      const res = await fetch(streamUrl, {
+        referrerPolicy: "no-referrer",
+        signal: controller.signal
+      });
+      clearTimeout(tid);
+
+      if (!res.ok) throw new Error("CORS / Status " + res.status);
+
+      const contentLength = +res.headers.get("Content-Length") || 0;
+      const reader = res.body.getReader();
+      let received = 0;
+      const chunks = [];
+      const startTime = Date.now();
+
+      while (true) {
+        const { done, value } = await reader.read();
+        if (done) break;
+        chunks.push(value);
+        received += value.length;
+
+        if (contentLength > 0) {
+          const pct = Math.min(Math.round((received / contentLength) * 100), 99);
+          progressPercent.textContent = `${pct}%`;
+          progressBar.style.width = `${pct}%`;
+          const elapsed = (Date.now() - startTime) / 1000;
+          const speedBps = elapsed > 0 ? received / elapsed : 0;
+          statSpeed.textContent = speedBps >= 1024 * 1024 
+            ? `${(speedBps / (1024 * 1024)).toFixed(1)} MB/s`
+            : `${Math.round(speedBps / 1024)} KB/s`;
+          const remBytes = contentLength - received;
+          const etaSec = speedBps > 0 ? Math.ceil(remBytes / speedBps) : 0;
+          statEta.textContent = etaSec > 0 ? `Restante: ${etaSec}s` : "Finalizando...";
+        } else {
+          const mb = (received / (1024 * 1024)).toFixed(1);
+          progressPercent.textContent = "Descargando...";
+          progressBar.style.width = "75%";
+          statSpeed.textContent = `${mb} MB descargados`;
+          statEta.textContent = "Procesando...";
+        }
+      }
+
+      progressPercent.textContent = "100%";
+      progressBar.style.width = "100%";
+      statSpeed.textContent = "Descarga completada";
+      statEta.textContent = "Listo";
+
+      const mimeType = isAudio ? "audio/mpeg" : "video/mp4";
+      const blob = new Blob(chunks, { type: mimeType });
+      const localBlobUrl = window.URL.createObjectURL(blob);
+      const sizeMbStr = `${(blob.size / (1024 * 1024)).toFixed(2)} MB`;
+
+      finishDownload(localBlobUrl, sizeMbStr);
+
+    } catch (err) {
+      // 2. Fallback to stream proxy (guarantees zero 403, sets Referer on fly)
+      console.warn("Client direct stream fallback to proxy stream:", err);
+      statSpeed.textContent = "Canal directo...";
+      const proxyUrl = `${API_BASE}/api/tiktok/stream?url=${encodeURIComponent(streamUrl)}&title=${encodeURIComponent(fileName.replace(/\.[^/.]+$/, ""))}&is_audio=${isAudio ? "true" : "false"}`;
+      finishDownload(proxyUrl, "HD Directo");
+    }
+  }
+
   async function analyzeTiktok(url) {
     hideAlert();
     if (tiktokPreviewSection) tiktokPreviewSection.classList.add("hidden");
@@ -361,13 +462,63 @@ document.addEventListener("DOMContentLoaded", () => {
     }
 
     try {
-      const res = await fetch(getApiUrl("/api/tiktok/info"), {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ url }),
-      });
-      const data = await res.json();
-      if (!res.ok) throw new Error(data.detail || "Error al analizar TikTok.");
+      let data = null;
+      // 1. Try direct in-device extraction using the device's own network (residential/cellular IP)
+      try {
+        const clientRes = await fetch(`https://www.tikwm.com/api/?url=${encodeURIComponent(url)}&hd=1`, {
+          referrerPolicy: "no-referrer"
+        });
+        if (clientRes.ok) {
+          const json = await clientRes.json();
+          if (json.code === 0 && json.data) {
+            const d = json.data;
+            const author = d.author || {};
+            let playUrl = d.play || "";
+            if (playUrl.startsWith("/")) playUrl = "https://www.tikwm.com" + playUrl;
+            let hdplayUrl = d.hdplay || "";
+            if (hdplayUrl.startsWith("/")) hdplayUrl = "https://www.tikwm.com" + hdplayUrl;
+            let musicUrl = d.music || "";
+            if (musicUrl.startsWith("/")) musicUrl = "https://www.tikwm.com" + musicUrl;
+
+            const hdSize = d.hd_size || d.size || 0;
+            const sizeDisplay = hdSize > 0 ? `${(hdSize / (1024 * 1024)).toFixed(2)} MB` : "HD Original";
+
+            data = {
+              id: d.id || String(d.video_id),
+              title: d.title || "TikTok Video",
+              author_name: author.nickname || "Creador",
+              author_username: `@${author.unique_id || "usuario"}`,
+              avatar: author.avatar || "",
+              cover: d.cover || d.origin_cover || "",
+              duration_str: d.duration ? `${Math.floor(d.duration / 60)}:${d.duration % 60 < 10 ? '0' : ''}${d.duration % 60}` : "00:15",
+              likes_str: d.digg_count ? (d.digg_count >= 1e6 ? (d.digg_count/1e6).toFixed(1) + "M" : (d.digg_count >= 1e3 ? (d.digg_count/1e3).toFixed(1) + "K" : String(d.digg_count))) : "0",
+              comments_str: d.comment_count ? String(d.comment_count) : "0",
+              shares_str: d.share_count ? String(d.share_count) : "0",
+              views_str: d.play_count ? (d.play_count >= 1e6 ? (d.play_count/1e6).toFixed(1) + "M" : (d.play_count >= 1e3 ? (d.play_count/1e3).toFixed(1) + "K" : String(d.play_count))) : "0",
+              has_hd: Boolean(hdplayUrl),
+              music_title: (d.music_info && d.music_info.title) || "Audio original",
+              size_mb: sizeDisplay,
+              direct_video_hd: hdplayUrl || playUrl,
+              direct_video_sd: playUrl,
+              direct_audio: musicUrl,
+              in_device: true
+            };
+          }
+        }
+      } catch (clientErr) {
+        console.warn("Direct in-device extraction unavailable, using API:", clientErr);
+      }
+
+      // 2. Fallback to API endpoint if client direct extraction was not available
+      if (!data) {
+        const res = await fetch(getApiUrl("/api/tiktok/info"), {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ url }),
+        });
+        data = await res.json();
+        if (!res.ok) throw new Error(data.detail || "Error al analizar TikTok.");
+      }
 
       currentTiktokData = data;
       renderTiktok(data);
@@ -425,19 +576,19 @@ document.addEventListener("DOMContentLoaded", () => {
         return;
       }
 
-      // Fast Direct Download bypass if direct CDN URL is available
-      if (formatType === "tiktok-mp4-hd" && currentTiktokData?.direct_video_hd) {
-        downloadStatusSection.classList.remove("hidden");
-        downloadActiveState.classList.add("hidden");
-        downloadCompletedState.classList.remove("hidden");
+      const isAudio = (formatType === "tiktok-mp3");
+      const targetStream = isAudio 
+        ? (currentTiktokData?.direct_audio || currentTiktokData?.direct_video_hd)
+        : (currentTiktokData?.direct_video_hd || currentTiktokData?.direct_video_sd);
 
-        const cleanTitle = (currentTiktokData.title || "tiktok").replace(/[^a-zA-Z0-9_\-\s]/g, "").trim().substring(0, 45) + ".mp4";
-        completedFileName.textContent = cleanTitle;
-        completedFileSize.textContent = currentTiktokData.size_mb || "Máxima Calidad HD";
-        btnSaveFile.href = currentTiktokData.direct_video_hd;
-        btnSaveFile.setAttribute("download", cleanTitle);
-        btnSaveFile.setAttribute("target", "_blank");
-        downloadStatusSection.scrollIntoView({ behavior: "smooth", block: "nearest" });
+      const rawTitle = currentTiktokData?.title || "tiktok_video";
+      const cleanTitle = rawTitle.replace(/[^a-zA-Z0-9_\-\s]/g, "").trim().substring(0, 45) || "tiktok";
+      const ext = isAudio ? "mp3" : "mp4";
+      const finalFileName = `${cleanTitle}.${ext}`;
+
+      if (targetStream && targetStream.startsWith("http")) {
+        // Run in-device client download (using phone/browser resources directly)
+        downloadTikTokLocally(targetStream, finalFileName, isAudio);
         return;
       }
 
