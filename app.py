@@ -58,6 +58,15 @@ def get_base_ydl_opts() -> dict:
         "quiet": True,
         "no_warnings": True,
         "ffmpeg_location": FFMPEG_PATH,
+        "extractor_args": {
+            "youtube": {
+                "player_client": ["visionos", "android", "web"]
+            }
+        },
+        "http_headers": {
+            "User-Agent": "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/17.4 Safari/605.1.15",
+            "Accept-Language": "es-ES,es;q=0.9,en;q=0.8",
+        }
     }
     if NODE_PATH:
         opts["js_runtimes"] = {"node": {"path": NODE_PATH}}
@@ -90,18 +99,32 @@ def get_video_info(req: InfoRequest):
     opts = get_base_ydl_opts()
     opts["extract_flat"] = False
 
+    info = None
     try:
         with yt_dlp.YoutubeDL(opts) as ydl:
             info = ydl.extract_info(url, download=False)
     except Exception as e:
         error_msg = str(e)
-        if "Video unavailable" in error_msg:
-            detail = "El video no está disponible (puede ser privado o haber sido eliminado)."
-        elif "Private video" in error_msg:
-            detail = "Este video es privado."
-        else:
-            detail = f"Error al analizar el enlace: {error_msg}"
-        raise HTTPException(status_code=400, detail=detail)
+        # Fallback to alternate player client combination if initial attempt failed
+        if "unavailable" not in error_msg.lower() and "private" not in error_msg.lower():
+            try:
+                fallback_opts = get_base_ydl_opts()
+                fallback_opts["extractor_args"] = {"youtube": {"player_client": ["android", "tv_simply", "web"]}}
+                with yt_dlp.YoutubeDL(fallback_opts) as ydl2:
+                    info = ydl2.extract_info(url, download=False)
+            except Exception:
+                pass
+
+        if not info:
+            if "unavailable" in error_msg.lower() or "no está disponible" in error_msg.lower():
+                detail = "El video no está disponible en YouTube (puede ser privado, haber sido eliminado o tener restricción geográfica)."
+            elif "private" in error_msg.lower() or "privado" in error_msg.lower():
+                detail = "Este video es privado y no se puede descargar."
+            elif "sign in" in error_msg.lower() or "bot" in error_msg.lower():
+                detail = "YouTube ha solicitado verificación para este contenido. Por favor prueba con otro video o enlace."
+            else:
+                detail = f"Error al analizar el enlace: {error_msg.split(':', 1)[-1].strip()}"
+            raise HTTPException(status_code=400, detail=detail)
 
     # Extract available video resolutions
     available_heights = set()
@@ -222,10 +245,14 @@ def ensure_apple_mp4_compatibility(filepath: str, update_job=None) -> str:
             )
 
         temp_out = filepath + ".apple_compat.mp4"
+        use_videotoolbox = sys.platform == "darwin"
         cmd_ffmpeg = [FFMPEG_PATH, "-y", "-i", filepath]
 
         if needs_vtranscode:
-            cmd_ffmpeg.extend(["-c:v", "h264_videotoolbox", "-b:v", "4500k", "-pix_fmt", "yuv420p"])
+            if use_videotoolbox:
+                cmd_ffmpeg.extend(["-c:v", "h264_videotoolbox", "-b:v", "4500k", "-pix_fmt", "yuv420p"])
+            else:
+                cmd_ffmpeg.extend(["-c:v", "libx264", "-preset", "veryfast", "-crf", "20", "-pix_fmt", "yuv420p"])
         else:
             cmd_ffmpeg.extend(["-c:v", "copy"])
 
@@ -237,8 +264,8 @@ def ensure_apple_mp4_compatibility(filepath: str, update_job=None) -> str:
         cmd_ffmpeg.extend(["-movflags", "+faststart", temp_out])
 
         proc = subprocess.run(cmd_ffmpeg, capture_output=True, text=True)
-        if proc.returncode != 0 and needs_vtranscode:
-            # Fallback to libx264 if videotoolbox failed
+        if proc.returncode != 0 and needs_vtranscode and use_videotoolbox:
+            # Fallback to libx264 if videotoolbox failed on macOS
             cmd_ffmpeg_fallback = [FFMPEG_PATH, "-y", "-i", filepath, "-c:v", "libx264", "-preset", "veryfast", "-crf", "20", "-pix_fmt", "yuv420p"]
             if needs_atranscode:
                 cmd_ffmpeg_fallback.extend(["-c:a", "aac", "-b:a", "192k"])
