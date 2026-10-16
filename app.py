@@ -57,18 +57,25 @@ COOKIES_FILE = BASE_DIR / "cookies.txt"
 cookies_env = os.environ.get("YOUTUBE_COOKIES")
 if cookies_env:
     try:
-        COOKIES_FILE.write_text(cookies_env.strip(), encoding="utf-8")
+        content = cookies_env.strip()
+        if content.startswith("base64:"):
+            import base64
+            content = base64.b64decode(content[7:]).decode("utf-8", errors="ignore")
+        COOKIES_FILE.write_text(content, encoding="utf-8")
     except Exception as _ce:
         pass
 
 def get_base_ydl_opts() -> dict:
+    has_cookies = bool(COOKIES_FILE.exists() and COOKIES_FILE.stat().st_size > 0)
+    # When authenticated with cookies, web and mweb yield best quality and bypass bot walls
+    clients = ["web", "mweb", "ios"] if has_cookies else ["visionos", "android", "web"]
     opts: dict = {
         "quiet": True,
         "no_warnings": True,
         "ffmpeg_location": FFMPEG_PATH,
         "extractor_args": {
             "youtube": {
-                "player_client": ["visionos", "android", "web"]
+                "player_client": clients
             }
         },
         "http_headers": {
@@ -76,7 +83,7 @@ def get_base_ydl_opts() -> dict:
             "Accept-Language": "es-ES,es;q=0.9,en;q=0.8",
         }
     }
-    if COOKIES_FILE.exists() and COOKIES_FILE.stat().st_size > 0:
+    if has_cookies:
         opts["cookiefile"] = str(COOKIES_FILE)
     if NODE_PATH:
         opts["js_runtimes"] = {"node": {"path": NODE_PATH}}
@@ -743,10 +750,12 @@ def open_downloads_folder():
 
 @router.get("/health")
 def health():
+    has_cookies = bool(COOKIES_FILE.exists() and COOKIES_FILE.stat().st_size > 0)
     return {
         "status": "online",
         "ffmpeg": bool(shutil.which(FFMPEG_PATH) or os.path.exists(FFMPEG_PATH)),
         "node_js_runtime": bool(NODE_PATH),
+        "cookies_loaded": has_cookies,
         "downloads_dir": str(DOWNLOADS_DIR)
     }
 
