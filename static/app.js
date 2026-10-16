@@ -49,6 +49,10 @@ document.addEventListener("DOMContentLoaded", () => {
 
   if (engineToggleBtn) {
     engineToggleBtn.addEventListener("click", () => {
+      if (window.location.hostname !== "localhost" && window.location.hostname !== "127.0.0.1") {
+        window.open("http://localhost:5050", "_blank");
+        return;
+      }
       setEngine(currentEngine === "local" ? "cloud" : "local");
     });
   }

@@ -3,8 +3,61 @@ document.addEventListener("DOMContentLoaded", () => {
     window.lucide.createIcons();
   }
 
-  // Backend dedicado en Render (con FFmpeg nativo, sin restricciones de tamaño)
-  const API_BASE = "https://media-studio-app.onrender.com";
+  // --- Smart Backend Engine (Local vs Nube) ---
+  const RENDER_BASE = "https://media-studio-app.onrender.com";
+  const LOCAL_BASE = "http://127.0.0.1:5050";
+  let API_BASE = (window.location.hostname === "localhost" || window.location.hostname === "127.0.0.1") ? "" : RENDER_BASE;
+  let currentEngine = (window.location.hostname === "localhost" || window.location.hostname === "127.0.0.1") ? "local" : "cloud";
+
+  const engineToggleBtn = document.getElementById("engineToggleBtn");
+  const engineDot = document.getElementById("engineDot");
+  const engineLabel = document.getElementById("engineLabel");
+
+  function setEngine(mode) {
+    currentEngine = mode;
+    if (mode === "local") {
+      API_BASE = (window.location.hostname === "localhost" || window.location.hostname === "127.0.0.1") ? "" : LOCAL_BASE;
+      if (engineDot) engineDot.className = "w-2 h-2 rounded-full bg-emerald-400";
+      if (engineLabel) engineLabel.textContent = "Motor Local (Mac activo)";
+    } else {
+      API_BASE = RENDER_BASE;
+      if (engineDot) engineDot.className = "w-2 h-2 rounded-full bg-sky-400";
+      if (engineLabel) engineLabel.textContent = "Motor Nube (Render)";
+    }
+  }
+
+  async function checkBackendAvailability() {
+    if (window.location.hostname === "localhost" || window.location.hostname === "127.0.0.1") {
+      setEngine("local");
+      return;
+    }
+    // Ping local backend to see if user has Iniciar-Media-Studio running on Mac
+    try {
+      const controller = new AbortController();
+      const tid = setTimeout(() => controller.abort(), 1200);
+      const res = await fetch(`${LOCAL_BASE}/health`, { mode: "cors", signal: controller.signal });
+      clearTimeout(tid);
+      if (res.ok) {
+        setEngine("local");
+        return;
+      }
+    } catch (_) {
+      // Local engine not running, fall back to cloud Render
+    }
+    setEngine("cloud");
+  }
+
+  if (engineToggleBtn) {
+    engineToggleBtn.addEventListener("click", () => {
+      if (window.location.hostname !== "localhost" && window.location.hostname !== "127.0.0.1") {
+        window.open("http://localhost:5050", "_blank");
+        return;
+      }
+      setEngine(currentEngine === "local" ? "cloud" : "local");
+    });
+  }
+
+  checkBackendAvailability();
 
   function getApiUrl(path) {
     return `${API_BASE}${path}`;
