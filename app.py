@@ -53,6 +53,14 @@ class DownloadRequest(BaseModel):
     url: str
     format_type: str  # e.g., 'mp4-best', 'mp4-1080', 'mp4-720', 'mp4-480', 'mp3-320', 'mp3-192', 'm4a', 'wav', 'webm'
 
+COOKIES_FILE = BASE_DIR / "cookies.txt"
+cookies_env = os.environ.get("YOUTUBE_COOKIES")
+if cookies_env:
+    try:
+        COOKIES_FILE.write_text(cookies_env.strip(), encoding="utf-8")
+    except Exception as _ce:
+        pass
+
 def get_base_ydl_opts() -> dict:
     opts: dict = {
         "quiet": True,
@@ -68,6 +76,8 @@ def get_base_ydl_opts() -> dict:
             "Accept-Language": "es-ES,es;q=0.9,en;q=0.8",
         }
     }
+    if COOKIES_FILE.exists() and COOKIES_FILE.stat().st_size > 0:
+        opts["cookiefile"] = str(COOKIES_FILE)
     if NODE_PATH:
         opts["js_runtimes"] = {"node": {"path": NODE_PATH}}
     return opts
