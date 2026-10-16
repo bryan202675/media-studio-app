@@ -54,19 +54,39 @@ class DownloadRequest(BaseModel):
     format_type: str  # e.g., 'mp4-best', 'mp4-1080', 'mp4-720', 'mp4-480', 'mp3-320', 'mp3-192', 'm4a', 'wav', 'webm'
 
 COOKIES_FILE = BASE_DIR / "cookies.txt"
-cookies_env = os.environ.get("YOUTUBE_COOKIES")
-if cookies_env:
-    try:
-        content = cookies_env.strip()
-        if content.startswith("base64:"):
-            import base64
-            content = base64.b64decode(content[7:]).decode("utf-8", errors="ignore")
-        COOKIES_FILE.write_text(content, encoding="utf-8")
-    except Exception as _ce:
-        pass
+
+def load_cookies() -> bool:
+    # 1. Check environment variables
+    for env_key in ("YOUTUBE_COOKIES", "COOKIES", "YOUTUBE_COOKIE", "COOKIE"):
+        val = os.environ.get(env_key)
+        if val and val.strip():
+            content = val.strip()
+            if content.startswith("base64:"):
+                import base64
+                content = base64.b64decode(content[7:]).decode("utf-8", errors="ignore")
+            try:
+                COOKIES_FILE.write_text(content, encoding="utf-8")
+                return True
+            except Exception:
+                pass
+
+    # 2. Check Render Secret Files default mount path: /etc/secrets/cookies.txt
+    secret_path = Path("/etc/secrets/cookies.txt")
+    if secret_path.exists() and secret_path.stat().st_size > 0:
+        try:
+            COOKIES_FILE.write_text(secret_path.read_text(encoding="utf-8"), encoding="utf-8")
+            return True
+        except Exception:
+            pass
+
+    # 3. Check existing file on disk
+    if COOKIES_FILE.exists() and COOKIES_FILE.stat().st_size > 0:
+        return True
+
+    return False
 
 def get_base_ydl_opts() -> dict:
-    has_cookies = bool(COOKIES_FILE.exists() and COOKIES_FILE.stat().st_size > 0)
+    has_cookies = load_cookies()
     # When authenticated with cookies, web and mweb yield best quality and bypass bot walls
     clients = ["web", "mweb", "ios"] if has_cookies else ["visionos", "android", "web"]
     opts: dict = {
@@ -83,6 +103,11 @@ def get_base_ydl_opts() -> dict:
             "Accept-Language": "es-ES,es;q=0.9,en;q=0.8",
         }
     }
+    if has_cookies:
+        opts["cookiefile"] = str(COOKIES_FILE)
+    if NODE_PATH:
+        opts["js_runtimes"] = {"node": {"path": NODE_PATH}}
+    return opts
     if has_cookies:
         opts["cookiefile"] = str(COOKIES_FILE)
     if NODE_PATH:
@@ -748,9 +773,20 @@ def open_downloads_folder():
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"No se pudo abrir la carpeta: {e}")
 
+class CookiePayload(BaseModel):
+    cookies: str
+
+@router.post("/set-cookies")
+def set_cookies_endpoint(payload: CookiePayload):
+    text = payload.cookies.strip()
+    if not text:
+        raise HTTPException(status_code=400, detail="El contenido de las cookies está vacío.")
+    COOKIES_FILE.write_text(text, encoding="utf-8")
+    return {"success": True, "message": "Cookies configuradas exitosamente en el servidor."}
+
 @router.get("/health")
 def health():
-    has_cookies = bool(COOKIES_FILE.exists() and COOKIES_FILE.stat().st_size > 0)
+    has_cookies = load_cookies()
     return {
         "status": "online",
         "ffmpeg": bool(shutil.which(FFMPEG_PATH) or os.path.exists(FFMPEG_PATH)),
