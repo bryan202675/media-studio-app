@@ -92,17 +92,10 @@ def load_cookies() -> bool:
 
 def get_base_ydl_opts() -> dict:
     has_cookies = load_cookies()
-    # When authenticated with cookies, web and mweb yield best quality and bypass bot walls
-    clients = ["web", "mweb", "ios"] if has_cookies else ["visionos", "android", "web"]
     opts: dict = {
         "quiet": True,
         "no_warnings": True,
         "ffmpeg_location": FFMPEG_PATH,
-        "extractor_args": {
-            "youtube": {
-                "player_client": clients
-            }
-        },
         "http_headers": {
             "User-Agent": "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/17.4 Safari/605.1.15",
             "Accept-Language": "es-ES,es;q=0.9,en;q=0.8",
@@ -110,11 +103,7 @@ def get_base_ydl_opts() -> dict:
     }
     if has_cookies:
         opts["cookiefile"] = str(COOKIES_FILE)
-    if NODE_PATH:
-        opts["js_runtimes"] = {"node": {"path": NODE_PATH}}
-    return opts
-    if has_cookies:
-        opts["cookiefile"] = str(COOKIES_FILE)
+        opts["extractor_args"] = {"youtube": {"player_client": ["web", "mweb", "ios"]}}
     if NODE_PATH:
         opts["js_runtimes"] = {"node": {"path": NODE_PATH}}
     return opts
@@ -381,19 +370,19 @@ def run_download_job(job_id: str, url: str, format_type: str):
 
     # Prioritize H.264 (avc1) video and AAC (mp4a) audio for 100% native Apple QuickTime and iPhone compatibility
     if format_type == "mp4-best":
-        opts["format"] = "bestvideo[vcodec^=avc]+bestaudio[acodec^=mp4a]/bestvideo[vcodec^=avc]+bestaudio[ext=m4a]/bestvideo[ext=mp4]+bestaudio[ext=m4a]/bestvideo+bestaudio/best"
+        opts["format"] = "bestvideo[vcodec^=avc]+bestaudio[acodec^=mp4a]/bestvideo[ext=mp4]+bestaudio[ext=m4a]/bestvideo+bestaudio/best"
         opts["merge_output_format"] = "mp4"
     elif format_type == "mp4-4k":
-        opts["format"] = "bestvideo[height<=2160]+bestaudio/best[height<=2160]/best"
+        opts["format"] = "bestvideo[height<=2160]+bestaudio/best[height<=2160]/bestvideo+bestaudio/best"
         opts["merge_output_format"] = "mp4"
     elif format_type == "mp4-1080":
-        opts["format"] = "bestvideo[height<=1080][vcodec^=avc]+bestaudio[acodec^=mp4a]/bestvideo[height<=1080][vcodec^=avc]+bestaudio[ext=m4a]/bestvideo[height<=1080][ext=mp4]+bestaudio[ext=m4a]/bestvideo[height<=1080]+bestaudio/best"
+        opts["format"] = "bestvideo[height<=1080][vcodec^=avc]+bestaudio[acodec^=mp4a]/bestvideo[height<=1080]+bestaudio/best[height<=1080]/bestvideo+bestaudio/best"
         opts["merge_output_format"] = "mp4"
     elif format_type == "mp4-720":
-        opts["format"] = "bestvideo[height<=720][vcodec^=avc]+bestaudio[acodec^=mp4a]/bestvideo[height<=720][vcodec^=avc]+bestaudio[ext=m4a]/bestvideo[height<=720][ext=mp4]+bestaudio[ext=m4a]/bestvideo[height<=720]+bestaudio/best"
+        opts["format"] = "bestvideo[height<=720][vcodec^=avc]+bestaudio[acodec^=mp4a]/bestvideo[height<=720]+bestaudio/best[height<=720]/bestvideo+bestaudio/best"
         opts["merge_output_format"] = "mp4"
     elif format_type == "mp4-480":
-        opts["format"] = "bestvideo[height<=480][vcodec^=avc]+bestaudio[acodec^=mp4a]/bestvideo[height<=480][vcodec^=avc]+bestaudio[ext=m4a]/bestvideo[height<=480][ext=mp4]+bestaudio[ext=m4a]/bestvideo[height<=480]+bestaudio/best"
+        opts["format"] = "bestvideo[height<=480][vcodec^=avc]+bestaudio[acodec^=mp4a]/bestvideo[height<=480]+bestaudio/best[height<=480]/bestvideo+bestaudio/best"
         opts["merge_output_format"] = "mp4"
     elif format_type == "webm-best":
         opts["format"] = "bestvideo+bestaudio/best"

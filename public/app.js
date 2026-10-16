@@ -121,6 +121,9 @@ document.addEventListener("DOMContentLoaded", () => {
   const completedFileName = document.getElementById("completedFileName");
   const completedFileSize = document.getElementById("completedFileSize");
   const btnSaveFile = document.getElementById("btnSaveFile");
+  const btnSaveToGallery = document.getElementById("btnSaveToGallery");
+  let currentFileBlob = null;
+  let currentFileName = "video.mp4";
 
   let pollInterval = null;
 
@@ -440,6 +443,9 @@ document.addEventListener("DOMContentLoaded", () => {
       const localBlobUrl = window.URL.createObjectURL(blob);
       const sizeMbStr = `${(blob.size / (1024 * 1024)).toFixed(2)} MB`;
 
+      currentFileBlob = blob;
+      currentFileName = fileName;
+
       finishDownload(localBlobUrl, sizeMbStr);
 
     } catch (err) {
@@ -675,6 +681,9 @@ document.addEventListener("DOMContentLoaded", () => {
           btnSaveFile.setAttribute("download", job.filename || "descarga");
           btnSaveFile.removeAttribute("target");
 
+          currentFileBlob = null;
+          currentFileName = job.filename || "descarga.mp4";
+
           if (window.lucide) window.lucide.createIcons();
           loadHistory();
         } else if (status === "error") {
@@ -686,6 +695,68 @@ document.addEventListener("DOMContentLoaded", () => {
         console.error("Poll error:", err);
       }
     }, 500);
+  }
+
+  // --- Save to Photos / Gallery Handler (iPhone / Android Web Share API) ---
+  if (btnSaveToGallery) {
+    btnSaveToGallery.addEventListener("click", async () => {
+      try {
+        btnSaveToGallery.disabled = true;
+        const originalHtml = btnSaveToGallery.innerHTML;
+        btnSaveToGallery.innerHTML = `<span>Procesando...</span>`;
+
+        let blob = currentFileBlob;
+        if (!blob && btnSaveFile && btnSaveFile.href && btnSaveFile.href !== "#") {
+          try {
+            const res = await fetch(btnSaveFile.href);
+            if (res.ok) {
+              blob = await res.blob();
+              currentFileBlob = blob;
+            }
+          } catch (fetchErr) {
+            console.warn("Could not fetch blob for gallery share:", fetchErr);
+          }
+        }
+
+        const fileName = currentFileName || "video.mp4";
+        const ext = fileName.split(".").pop().toLowerCase();
+        const mimeType = (ext === "mp3") ? "audio/mpeg" : (ext === "m4a" ? "audio/mp4" : "video/mp4");
+
+        if (blob) {
+          const file = new File([blob], fileName, { type: mimeType });
+          if (navigator.canShare && navigator.canShare({ files: [file] })) {
+            await navigator.share({
+              files: [file],
+              title: fileName,
+              text: "Guardar en Fotos / Galería"
+            });
+            btnSaveToGallery.disabled = false;
+            btnSaveToGallery.innerHTML = originalHtml;
+            if (window.lucide) window.lucide.createIcons();
+            return;
+          }
+        }
+
+        // Fallback for desktop or non-supporting browsers
+        const downloadUrl = blob ? window.URL.createObjectURL(blob) : btnSaveFile.href;
+        const a = document.createElement("a");
+        a.href = downloadUrl;
+        a.download = fileName;
+        document.body.appendChild(a);
+        a.click();
+        setTimeout(() => a.remove(), 100);
+        showAlert("Abre el archivo descargado y presiona 'Guardar en Fotos' o arrástralo a tu Galería.");
+      } catch (err) {
+        if (err.name !== "AbortError") {
+          console.error("Gallery share error:", err);
+          showAlert("En el menú que se abrió, presiona 'Guardar video' para enviarlo a tu Galería de Fotos.");
+        }
+      } finally {
+        btnSaveToGallery.disabled = false;
+        btnSaveToGallery.innerHTML = `<i data-lucide="image" class="w-3.5 h-3.5"></i><span>Guardar en Galería</span>`;
+        if (window.lucide) window.lucide.createIcons();
+      }
+    });
   }
 
   // --- Downloads History ---

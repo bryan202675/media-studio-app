@@ -493,15 +493,23 @@
             <p id="completedFileSize" class="text-xs text-[#86868b] font-mono">0 MB</p>
           </div>
 
-          <div class="flex items-center gap-2 w-full sm:w-auto">
+          <div class="flex flex-col sm:flex-row items-center gap-2 w-full sm:w-auto">
+            <button 
+              id="btnSaveToGallery" 
+              type="button" 
+              class="w-full sm:w-auto px-5 py-2.5 rounded-xl text-xs font-semibold flex items-center justify-center gap-1.5 bg-emerald-500 hover:bg-emerald-400 text-black shadow-sm transition-all cursor-pointer"
+            >
+              <i data-lucide="image" class="w-3.5 h-3.5"></i>
+              <span>Guardar en Galería</span>
+            </button>
             <a 
               id="btnSaveFile" 
               href="#" 
               download 
-              class="apple-btn-primary w-full sm:w-auto px-6 py-2.5 rounded-xl text-xs font-medium flex items-center justify-center gap-1.5"
+              class="w-full sm:w-auto px-4 py-2.5 rounded-xl text-xs font-medium flex items-center justify-center gap-1.5 bg-[#1c1c1e] hover:bg-[#2c2c2e] text-neutral-300 border border-white/10 transition-all"
             >
               <i data-lucide="download" class="w-3.5 h-3.5"></i>
-              <span>Guardar archivo</span>
+              <span>Descargar archivo</span>
             </a>
           </div>
         </div>
